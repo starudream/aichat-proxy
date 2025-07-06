@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+
+GITHUB_BASE_URL="https://github.com"
+
+# https://github.com/daijro/camoufox/releases/latest
+CAMOUFOX_VERSION="135.0.1"
+CAMOUFOX_RELEASE="beta.24"
+CAMOUFOX_OS_ARCH="lin.x86_64"
+#CAMOUFOX_OS_ARCH="lin.arm64"
+CAMOUFOX_FULL_VERSION="${CAMOUFOX_VERSION}-${CAMOUFOX_RELEASE}"
+
+echo "download camoufox-${CAMOUFOX_FULL_VERSION}-${CAMOUFOX_OS_ARCH}.zip from ${GITHUB_BASE_URL}"
+wget -q --show-progress -O camoufox.zip ${GITHUB_BASE_URL}/daijro/camoufox/releases/download/v${CAMOUFOX_FULL_VERSION}/camoufox-${CAMOUFOX_FULL_VERSION}-${CAMOUFOX_OS_ARCH}.zip
+
+echo "create version.json"
+echo "{\"version\":\"${CAMOUFOX_VERSION}\",\"release\":\"${CAMOUFOX_RELEASE}\"}" > version.json
+
+echo "download tampermonkey addon"
+wget -q --show-progress -O tampermonkey.xpi https://addons.mozilla.org/firefox/downloads/file/4405733/tampermonkey-5.3.3.xpi
+#wget -q --show-progress -O tampermonkey.xpi https://addons.mozilla.org/firefox/downloads/latest/tampermonkey/latest.xpi
+mv tampermonkey.xpi tampermonkey.zip
+unzip tampermonkey.zip -d tampermonkey
+
+echo "done"

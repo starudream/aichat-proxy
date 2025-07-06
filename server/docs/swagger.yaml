@@ -1,0 +1,219 @@
+consumes:
+- application/json
+definitions:
+  config.Version:
+    properties:
+      buildDate:
+        type: string
+      compiler:
+        type: string
+      gitCommit:
+        type: string
+      gitTreeState:
+        type: string
+      gitVersion:
+        type: string
+      goVersion:
+        type: string
+      platform:
+        type: string
+    type: object
+  router.ChatCompletionChoice:
+    properties:
+      finish_reason:
+        type: string
+      index:
+        type: integer
+      message:
+        $ref: '#/definitions/router.ChatCompletionMessage'
+    type: object
+  router.ChatCompletionMessage:
+    properties:
+      content:
+        type: string
+      role:
+        type: string
+    type: object
+  router.ChatCompletionReq:
+    properties:
+      messages:
+        items:
+          $ref: '#/definitions/router.ChatCompletionMessage'
+        type: array
+      model:
+        type: string
+    type: object
+  router.ChatCompletionResp:
+    properties:
+      choices:
+        items:
+          $ref: '#/definitions/router.ChatCompletionChoice'
+        type: array
+      created:
+        type: integer
+      id:
+        type: string
+      model:
+        type: string
+      object:
+        type: string
+      usage:
+        $ref: '#/definitions/router.ChatCompletionUsage'
+    type: object
+  router.ChatCompletionUsage:
+    properties:
+      completion_tokens:
+        type: integer
+      completion_tokens_details:
+        properties:
+          reasoning_tokens:
+            type: integer
+        type: object
+      prompt_tokens:
+        type: integer
+      prompt_tokens_details:
+        properties:
+          cached_tokens:
+            type: integer
+        type: object
+      total_tokens:
+        type: integer
+    type: object
+  router.ListModelResp:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/router.Model'
+        type: array
+      object:
+        type: string
+    type: object
+  router.Model:
+    properties:
+      created:
+        type: integer
+      id:
+        type: string
+      object:
+        type: string
+      owned_by:
+        type: string
+    type: object
+info:
+  contact:
+    name: github repo
+    url: https://github.com/starudream/aichat-proxy
+  license:
+    name: Apache-2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0
+  title: AIChat Proxy API
+  version: "1.0"
+paths:
+  /chat/completions:
+    post:
+      description: Follows the exact same API spec as `https://platform.openai.com/docs/api-reference/chat`
+      parameters:
+      - description: Request
+        in: body
+        name: '*'
+        required: true
+        schema:
+          $ref: '#/definitions/router.ChatCompletionReq'
+      produces:
+      - application/json
+      - text/event-stream
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.ChatCompletionResp'
+      security:
+      - ApiKeyAuth: []
+      summary: Chat Completions
+      tags:
+      - 2_chat
+  /health:
+    get:
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+      summary: Health Check
+      tags:
+      - 0_global
+  /models:
+    get:
+      description: Follows the exact same API spec as `https://platform.openai.com/docs/api-reference/models/list`
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.ListModelResp'
+      security:
+      - ApiKeyAuth: []
+      summary: Model List
+      tags:
+      - 1_model
+  /v1/chat/completions:
+    post:
+      description: Follows the exact same API spec as `https://platform.openai.com/docs/api-reference/chat`
+      parameters:
+      - description: Request
+        in: body
+        name: '*'
+        required: true
+        schema:
+          $ref: '#/definitions/router.ChatCompletionReq'
+      produces:
+      - application/json
+      - text/event-stream
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.ChatCompletionResp'
+      security:
+      - ApiKeyAuth: []
+      summary: Chat Completions
+      tags:
+      - 2_chat
+  /v1/models:
+    get:
+      description: Follows the exact same API spec as `https://platform.openai.com/docs/api-reference/models/list`
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.ListModelResp'
+      security:
+      - ApiKeyAuth: []
+      summary: Model List
+      tags:
+      - 1_model
+  /version:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/config.Version'
+      summary: show version
+      tags:
+      - 0_global
+produces:
+- application/json
+schemes:
+- http
+securityDefinitions:
+  ApiKeyAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

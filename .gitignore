@@ -1,0 +1,11 @@
+.idea/
+.vscode/
+
+bin/
+data/
+.env
+
+camoufox/*.zip
+camoufox/*.xpi
+camoufox/version.json
+camoufox/tampermonkey/
