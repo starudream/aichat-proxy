@@ -54,10 +54,7 @@ func Start(ctx context.Context) {
 
 	go func() {
 		defer cancel()
-		addr := config.To[string]("server.addr")
-		if addr == "" {
-			addr = config.ServerAddress
-		}
+		addr := config.G().ServerAddr
 		tcpAddr, _ := net.ResolveTCPAddr(app.Config().Network, addr)
 		if tcpAddr != nil {
 			logger.Info().Str("addr", addr).Msg("http server starting")
@@ -126,7 +123,7 @@ func mdLogger() fiber.Handler {
 }
 
 func mdFGProf() fiber.Handler {
-	if !config.To[bool]("server.fgprof.enabled") {
+	if !config.G().ServerFGProfEnabled {
 		return nil
 	}
 	return fgprof.New(fgprof.Config{})

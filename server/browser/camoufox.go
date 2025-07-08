@@ -77,13 +77,13 @@ func (p *CamoufoxParams) init() *CamoufoxParams {
 	// p.DisableCoop = true
 	p.GeoIP = true
 	if p.Proxy == nil {
-		s := config.To[string]("browser.proxy")
+		s := config.G().BrowserProxy
 		if s != "" {
 			u, e := url.Parse(s)
 			if e == nil {
 				p.Proxy = &Proxy{
 					Server:   fmt.Sprintf("%s://%s", u.Scheme, u.Host),
-					Bypass:   config.To[string]("browser.bypass"),
+					Bypass:   config.G().BrowserBypass,
 					Username: u.User.Username(),
 					Password: func() string { w, _ := u.User.Password(); return w }(),
 				}

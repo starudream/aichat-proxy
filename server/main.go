@@ -2,25 +2,39 @@ package main
 
 import (
 	"context"
-	"log/slog"
+	"flag"
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/starudream/aichat-proxy/server/browser"
 	"github.com/starudream/aichat-proxy/server/config"
-	"github.com/starudream/aichat-proxy/server/internal/json"
 	"github.com/starudream/aichat-proxy/server/logger"
 	"github.com/starudream/aichat-proxy/server/router"
 )
 
-func main() {
-	if config.DEBUG("CONFIG") {
-		logger.Debug().Msgf("loaded config: %s", json.MustMarshal(config.C().Raw()))
+var (
+	pHelp    bool
+	pVersion bool
+)
+
+func init() {
+	flag.BoolVar(&pHelp, "h", false, "show help")
+	flag.BoolVar(&pVersion, "v", false, "show version")
+	flag.Parse()
+
+	if pHelp {
+		flag.Usage()
+		os.Exit(0)
 	}
+	if pVersion {
+		fmt.Print(config.GetVersion().String())
+		os.Exit(0)
+	}
+}
 
-	slog.Default().Info("app starting")
-
+func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	ch := make(chan os.Signal, 1)

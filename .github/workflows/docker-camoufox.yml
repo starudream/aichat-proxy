@@ -1,0 +1,49 @@
+name: docker camoufox
+
+permissions:
+  packages: write
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: docker image version
+        required: true
+        default: develop
+        type: string
+
+jobs:
+  camoufox:
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ inputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: init
+        run: |
+          cd camoufox
+          bash init-camoufox.sh
+          echo "camoufox version: $(jq -r .version version.json)"
+          echo "camoufox release: $(jq -r .release version.json)"
+          bash init-tampermonkey.sh
+          echo "tampermonkey version: $(jq -r .version tampermonkey/manifest.json)"
+      - uses: docker/login-action@v3
+        with:
+          username: starudream
+          password: ${{ secrets.DOCKER_TOKEN }}
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: starudream
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          tags: starudream/aichat-proxy-camoufox:${{ env.VERSION }},ghcr.io/starudream/aichat-proxy-camoufox:${{ env.VERSION }}
+          context: camoufox
+          platforms: linux/amd64
+          pull: true
+          push: true
+          cache-from: type=gha,scope=${{ github.job }}
+          cache-to: type=gha,mode=max,scope=${{ github.job }}

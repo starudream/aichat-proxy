@@ -24,7 +24,7 @@ func init() {
 	zerolog.ErrorHandler = func(err error) { _, _ = fmt.Fprintf(os.Stderr, "non-expected logger error: %v", err) }
 	zerolog.InterfaceMarshalFunc = json.Marshal
 
-	lv, err := zerolog.ParseLevel(config.To[string]("log.level"))
+	lv, err := zerolog.ParseLevel(config.G().LogLevel)
 	if err != nil || lv == zerolog.NoLevel {
 		lv = zerolog.InfoLevel
 	}
@@ -45,7 +45,7 @@ func loggerWriters() io.Writer {
 	return zerolog.MultiLevelWriter(
 		zerolog.NewConsoleWriter(func(w *zerolog.ConsoleWriter) {
 			w.Out = os.Stdout
-			w.NoColor = config.To[bool]("log.no_color")
+			w.NoColor = config.G().LogNoColor
 			w.TimeFormat = zerolog.TimeFieldFormat
 			w.TimeLocation = time.Local
 		}),

@@ -1,9 +1,5 @@
 package router
 
-import (
-	"github.com/starudream/aichat-proxy/server/config"
-)
-
 type ListModelResp struct {
 	Object string   `json:"object"`
 	Data   []*Model `json:"data"`
@@ -31,13 +27,6 @@ const defaultCreated = 1751731200
 func hdrModels(c *Ctx) error {
 	return c.JSON(&ListModelResp{
 		Object: "list",
-		Data: []*Model{
-			{
-				Id:      "doubao",
-				Object:  "model",
-				Created: defaultCreated,
-				OwnedBy: config.AppName,
-			},
-		},
+		Data:   []*Model{}, // todo
 	})
 }

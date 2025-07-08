@@ -1,4 +1,4 @@
-PROJECT := $(shell basename $(shell pwd))
+PROJECT := aichat-proxy
 MODULE  := $(shell go list -m)
 VERSION ?= $(shell git describe --exact-match --tags HEAD 2>/dev/null || git rev-parse --short HEAD 2>/dev/null || date '+%Y%m%d-%H%M%S')
 
@@ -32,12 +32,16 @@ bin: tidy				##@ Build the application.
 bin-linux: tidy			##@ Build the application for linux.
 	@GOOS=linux CGO_ENABLED=0 go build -tags 'release' -ldflags '-s -w' -o ./bin/$(PROJECT)-linux $(MODULE)/server
 
+.PHONY: version-bin
+version-bin:			##@ Print the version of the application.
+	@go version -m ./bin/$(PROJECT)
+
 .PHONY: run
 run: bin				##@ Run the application.
-	@DEBUG=1 ./bin/$(PROJECT) $(ARGS)
+	@./bin/$(PROJECT) $(ARGS)
 
 .PHONY: swag
-swag: bin				##@ Generate swagger files.
+swag:					##@ Generate swagger files.
 	@go run github.com/swaggo/swag/cmd/swag@latest fmt -d server -g router/routes.go
 	@go run github.com/swaggo/swag/cmd/swag@latest init -o server/docs -ot go,yaml -d server -g router/routes.go
 

@@ -1,4 +1,4 @@
-name: camoufox
+name: docker aichat proxy
 
 permissions:
   packages: write
@@ -7,25 +7,24 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'docker image version'
+        description: docker image version
         required: true
-        default: 'develop'
+        default: develop
+        type: string
+      camoufox-version:
+        description: camoufox docker image version
+        required: true
+        default: develop
         type: string
 
 jobs:
-  camoufox:
+  aichat-proxy:
     runs-on: ubuntu-latest
     env:
       VERSION: ${{ inputs.version }}
+      CAMOUFOX_VERSION: ${{ inputs.camoufox-version }}
     steps:
       - uses: actions/checkout@v4
-      - name: init
-        run: |
-          cd camoufox
-          bash init.sh
-          echo "camoufox version: $(jq -r .version version.json)"
-          echo "camoufox release: $(jq -r .version version.json)"
-          echo "tampermonkey version: $(jq -r .version tampermonkey/manifest.json)"
       - uses: docker/login-action@v3
         with:
           username: starudream
@@ -40,7 +39,8 @@ jobs:
       - uses: docker/build-push-action@v6
         with:
           tags: starudream/aichat-proxy:${{ env.VERSION }},ghcr.io/starudream/aichat-proxy:${{ env.VERSION }}
-          context: camoufox
+          build-args: |
+            CAMOUFOX_VERSION=${{ env.CAMOUFOX_VERSION }}
           platforms: linux/amd64
           pull: true
           push: true

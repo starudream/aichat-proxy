@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"strings"
+	"text/template"
 	"time"
 
 	"github.com/spf13/cast"
@@ -38,11 +38,21 @@ type ChatCompletionChoice struct {
 	FinishReason string                 `json:"finish_reason,omitempty"`
 }
 
-var roleMap = map[string]string{
-	"system":    "系统",
-	"user":      "用户",
-	"assistant": "助手",
-}
+var chatPrompt = template.Must(template.New("").Parse(`
+{{- range $index, $message := .Messages }}
+{{- if gt $index 0 }}{{ print "---\n" }}{{ end }}
+{{- if eq $message.Role "system" }}
+{{- print "【系统】" }}
+{{- else if eq $message.Role "user" }}
+{{- print "【用户】" }}
+{{- else if eq $message.Role "assistant" }}
+{{- print "【助手】" }}
+{{- else if eq $message.Role "tool" }}
+{{- print "【工具】" }}
+{{- end }}
+{{ $message.Content }}
+{{ end -}}
+`))
 
 // Chat Completions
 //
@@ -63,26 +73,8 @@ func hdrChatCompletions(c *Ctx) error {
 	}
 
 	buf := &bytes.Buffer{}
-
-	for _, m := range req.Messages {
-		content := strings.TrimSpace(m.Content)
-		if content == "" {
-			continue
-		}
-		if buf.Len() > 0 {
-			buf.WriteString("\n----------\n\n")
-		}
-		if role, ok := roleMap[strings.ToLower(m.Role)]; ok {
-			buf.WriteString("【")
-			buf.WriteString(role)
-			buf.WriteString("】")
-			buf.WriteString("\n")
-		}
-		buf.WriteString(strings.TrimSpace(content))
-	}
-
-	if buf.Len() == 0 {
-		return NewError(400, "no valid message")
+	if err := chatPrompt.Execute(buf, req); err != nil {
+		return err
 	}
 
 	hdr, err := browser.B().HandleDoubao(buf.String())

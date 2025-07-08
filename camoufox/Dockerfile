@@ -5,16 +5,17 @@ WORKDIR /app
 RUN set -eux; \
     apt-get update; \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-      ca-certificates tzdata bash net-tools curl unzip supervisor \
+      ca-certificates tzdata bash net-tools wget curl unzip supervisor \
       libgtk-3-0 libx11-xcb1 libasound2 \
-      novnc x11vnc xvfb fluxbox \
+      tigervnc-standalone-server novnc \
     ; \
     rm -rf /var/lib/apt/lists/*
 
-COPY version.json /root/.cache/camoufox/
-COPY camoufox.zip /temp/
+COPY init-camoufox.sh init-camoufox.sh
 RUN set -eux; \
-    unzip /temp/camoufox.zip -d /root/.cache/camoufox/ && rm -rf /temp/camoufox.zip; \
+    mkdir -p /root/.cache/camoufox/; \
+    bash init-camoufox.sh && unzip -q camoufox.zip -d /root/.cache/camoufox/ && rm -rf camoufox.zip init-camoufox.sh; \
+    mv version.json /root/.cache/camoufox/; \
     pip install -U camoufox[geoip]==0.4.11 playwright==1.52.0; \
     python -m camoufox fetch; \
     mkdir -p /root/.cache/ms-playwright-go/; \

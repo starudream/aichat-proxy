@@ -1,0 +1,15 @@
+[program:aichat-proxy]
+directory=/app
+command=/app/bin/aichat-proxy
+autorestart=true
+stdout_logfile=/app/supervisor/logs/aichat-proxy.log
+stdout_logfile_maxbytes=20MB
+stdout_logfile_backups=5
+redirect_stderr=true
+
+[program:aichat-proxy-tail]
+command=tail -f /app/supervisor/logs/aichat-proxy.log
+autorestart=true
+stdout_logfile=/dev/stdout
+stdout_logfile_maxbytes=0
+redirect_stderr=true

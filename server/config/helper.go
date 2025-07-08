@@ -14,10 +14,6 @@ func C() *koanf.Koanf {
 	return k
 }
 
-func To[T cast.Basic](path string) T {
-	return cast.To[T](C().Get(path))
-}
-
 func DEBUG(names ...string) bool {
 	// env MODULE_DEBUG
 	for _, name := range names {

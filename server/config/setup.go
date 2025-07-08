@@ -17,8 +17,8 @@ import (
 )
 
 var loaders = []func() (koanf.Provider, koanf.Parser){
-	envLoader,
 	fileDotenvLoader,
+	envLoader,
 }
 
 func init() {
@@ -35,8 +35,13 @@ func init() {
 			os.Exit(1)
 		}
 	}
-	if DEBUG() {
-		_, _ = fmt.Fprintf(os.Stdout, "config loaded: %v\n", json.MustMarshalToString(k.Raw()))
+	err := k.UnmarshalWithConf("", g, koanf.UnmarshalConf{Tag: "config", FlatPaths: true})
+	if err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "unmarshal config error: %v\n", err)
+		os.Exit(1)
+	}
+	if DEBUG("CONFIG") {
+		_, _ = fmt.Fprintf(os.Stdout, "config loaded: %v\n", json.MustMarshalToString(g))
 	}
 }
 

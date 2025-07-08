@@ -1,8 +1,10 @@
 services:
   camoufox:
-    build:
-      context: camoufox
-      dockerfile: Dockerfile
+    # build:
+    #   context: camoufox
+    #   dockerfile: Dockerfile
+    image: starudream/aichat-proxy-camoufox:develop
+    platform: linux/amd64
     hostname: camoufox
     volumes:
       - "./.env:/app/.env:ro"

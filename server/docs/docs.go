@@ -274,39 +274,6 @@ const docTemplate = `{
                 },
                 "object": {
                     "type": "string"
-                },
-                "usage": {
-                    "$ref": "#/definitions/router.ChatCompletionUsage"
-                }
-            }
-        },
-        "router.ChatCompletionUsage": {
-            "type": "object",
-            "properties": {
-                "completion_tokens": {
-                    "type": "integer"
-                },
-                "completion_tokens_details": {
-                    "type": "object",
-                    "properties": {
-                        "reasoning_tokens": {
-                            "type": "integer"
-                        }
-                    }
-                },
-                "prompt_tokens": {
-                    "type": "integer"
-                },
-                "prompt_tokens_details": {
-                    "type": "object",
-                    "properties": {
-                        "cached_tokens": {
-                            "type": "integer"
-                        }
-                    }
-                },
-                "total_tokens": {
-                    "type": "integer"
                 }
             }
         },

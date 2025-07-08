@@ -57,27 +57,6 @@ definitions:
         type: string
       object:
         type: string
-      usage:
-        $ref: '#/definitions/router.ChatCompletionUsage'
-    type: object
-  router.ChatCompletionUsage:
-    properties:
-      completion_tokens:
-        type: integer
-      completion_tokens_details:
-        properties:
-          reasoning_tokens:
-            type: integer
-        type: object
-      prompt_tokens:
-        type: integer
-      prompt_tokens_details:
-        properties:
-          cached_tokens:
-            type: integer
-        type: object
-      total_tokens:
-        type: integer
     type: object
   router.ListModelResp:
     properties:
