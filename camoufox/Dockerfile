@@ -7,7 +7,7 @@ RUN set -eux; \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
       ca-certificates tzdata bash net-tools wget curl unzip supervisor \
       libgtk-3-0 libx11-xcb1 libasound2 \
-      tigervnc-standalone-server novnc \
+      fluxbox tigervnc-standalone-server novnc \
     ; \
     rm -rf /var/lib/apt/lists/*
 
