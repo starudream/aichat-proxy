@@ -25,13 +25,16 @@ type Ctx = fiber.Ctx
 func Start(ctx context.Context) {
 	ctx, cancel := context.WithCancel(ctx)
 
+	debug := config.DEBUG("SERVER")
+
 	app := fiber.New(fiber.Config{
-		AppName:           config.AppName,
-		ServerHeader:      config.AppName,
-		JSONEncoder:       json.Marshal,
-		JSONDecoder:       json.Unmarshal,
-		ErrorHandler:      hdrError,
-		EnablePrintRoutes: config.DEBUG("SERVER"),
+		AppName:               config.AppName,
+		ServerHeader:          config.AppName,
+		JSONEncoder:           json.Marshal,
+		JSONDecoder:           json.Unmarshal,
+		ErrorHandler:          hdrError,
+		EnablePrintRoutes:     debug,
+		DisableStartupMessage: !debug,
 	})
 
 	mds := []func() fiber.Handler{

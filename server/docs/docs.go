@@ -28,6 +28,25 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/_sse.js": {
+            "get": {
+                "produces": [
+                    "text/plain"
+                ],
+                "tags": [
+                    "0_global"
+                ],
+                "summary": "TamperMonkey SSE Script File",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "plain"
+                        }
+                    }
+                }
+            }
+        },
         "/chat/completions": {
             "post": {
                 "security": [
@@ -176,7 +195,7 @@ const docTemplate = `{
                 "tags": [
                     "0_global"
                 ],
-                "summary": "show version",
+                "summary": "Show Version",
                 "responses": {
                     "200": {
                         "description": "OK",

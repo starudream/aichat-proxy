@@ -88,6 +88,18 @@ info:
   title: AIChat Proxy API
   version: "1.0"
 paths:
+  /_sse.js:
+    get:
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: plain
+      summary: TamperMonkey SSE Script File
+      tags:
+      - 0_global
   /chat/completions:
     post:
       description: Follows the exact same API spec as `https://platform.openai.com/docs/api-reference/chat`
@@ -183,7 +195,7 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/config.Version'
-      summary: show version
+      summary: Show Version
       tags:
       - 0_global
 produces:

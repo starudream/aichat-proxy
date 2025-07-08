@@ -5,6 +5,9 @@ import (
 	"log/slog"
 	"regexp"
 	"strings"
+	"sync"
+	"sync/atomic"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/playwright-community/playwright-go"
@@ -31,6 +34,11 @@ type Browser struct {
 	pw *playwright.Playwright
 	bc playwright.BrowserContext
 	ps playwright.PlaywrightAssertions
+
+	ec atomic.Uint32
+	mu sync.Mutex
+
+	doubaoMu sync.Mutex
 }
 
 func Run(ctx context.Context) {
@@ -83,18 +91,27 @@ func Run(ctx context.Context) {
 	logger.Info().Msg("browser ready")
 }
 
-func (s *Browser) openPage(url string) (playwright.Page, error) {
+func (s *Browser) openPage(url string) (page playwright.Page, err error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	pages := s.bc.Pages()
 	for i := range pages {
+		if pages[i].URL() == "about:blank" {
+			page = pages[i]
+			break
+		}
 		if strings.HasPrefix(pages[i].URL(), url) {
 			return pages[i], nil
 		}
 	}
 
-	page, err := s.bc.NewPage()
-	if err != nil {
-		logger.Error().Err(err).Msg("browser new page error")
-		return nil, err
+	if page == nil {
+		page, err = s.bc.NewPage()
+		if err != nil {
+			logger.Error().Err(err).Msg("open new page error")
+			return nil, err
+		}
 	}
 
 	_, err = page.Goto(url, playwright.PageGotoOptions{
@@ -106,9 +123,23 @@ func (s *Browser) openPage(url string) (playwright.Page, error) {
 		return nil, err
 	}
 
+	time.Sleep(time.Second)
+
 	logger.Info().Msgf("page goto %q ready", url)
 
 	return page, nil
+}
+
+func (s *Browser) resetPages(url string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	pages := s.bc.Pages()
+	for i := range pages {
+		if strings.HasPrefix(pages[i].URL(), url) {
+			_, _ = pages[i].Goto("about:blank")
+		}
+	}
 }
 
 type DoubaoMessage struct {
@@ -120,82 +151,111 @@ type DoubaoMessage struct {
 type DoubaoHandler struct {
 	Id string
 	Ch chan *DoubaoMessage
+
+	unix atomic.Int64
+	done atomic.Bool
 }
 
-func (s *Browser) HandleDoubao(prompt string) (*DoubaoHandler, error) {
-	page, err := s.openPage("https://www.doubao.com/chat/")
+const doubaoURL = "https://www.doubao.com/chat/"
+
+func (s *Browser) HandleDoubao(prompt string) (hdr *DoubaoHandler, err error) {
+	defer func() {
+		if err != nil {
+			if s.ec.Add(1) >= 3 {
+				s.ec.Store(0)
+				s.resetPages(doubaoURL)
+			}
+		}
+	}()
+
+	page, err := s.openPage(doubaoURL)
 	if err != nil {
-		return nil, err
+		return hdr, err
 	}
 
-	page.SetDefaultTimeout(10 * 1000)
+	page.SetDefaultTimeout(5 * 1000)
 
-	log := logger.With().Str("chat", "doubao").Logger()
+	hdr = &DoubaoHandler{
+		Id: uuid.Must(uuid.NewV7()).String(),
+		Ch: make(chan *DoubaoMessage),
+	}
 
-	log.Debug().Msg("page wait for chat")
+	log := logger.With().Str("chat", "doubao").Str("id", hdr.Id).Logger()
+
+	finish := func() {
+		if hdr.done.CompareAndSwap(false, true) {
+			log.Debug().Msg("finish")
+			time.Sleep(200 * time.Millisecond)
+			page.RemoveListeners("console")
+			// err = page.Close()
+			// if err != nil {
+			// 	log.Error().Err(err).Msg("page close error")
+			// } else {
+			// 	log.Debug().Msg("page closed")
+			// }
+			close(hdr.Ch)
+			s.doubaoMu.Unlock()
+			log.Debug().Msg("release lock")
+		}
+	}
+
+	log.Debug().Msg("acquire lock")
+	s.doubaoMu.Lock()
+	defer func() {
+		if err != nil {
+			finish()
+		}
+	}()
+
+	log.Debug().Msg("wait for create conversation button")
+	locCreate := page.GetByTestId("create_conversation_button")
+	if err = locCreate.WaitFor(); err != nil {
+		locCreate = page.Locator(`button[class*="create-chat-"]`)
+		if err = locCreate.WaitFor(); err != nil {
+			log.Error().Err(err).Msg("wait for create conversation button error")
+			return hdr, err
+		}
+	}
+
+	log.Debug().Msg("click create conversation button")
+	if err = locCreate.Click(); err != nil {
+		logger.Error().Err(err).Msg("click create conversation button error")
+		return hdr, err
+	}
+
+	log.Debug().Msg("wait for chat main")
 	locChat := page.GetByTestId("chat_input")
-	err = locChat.WaitFor()
-	if err != nil {
-		log.Error().Err(err).Msg("page wait for chat input error")
-		return nil, err
+	if err = locChat.WaitFor(); err != nil {
+		log.Error().Err(err).Msg("wait for chat main error")
+		return hdr, err
 	}
-	log.Debug().Msg("page find chat")
 
-	// log.Info().Msg("page wait for left tools")
-	// locLeft := locChat.Locator(`div[class^="left-tools-wrapper-"]`)
-	// err = locLeft.WaitFor(locatorWaitForOptions)
-	// if err != nil {
-	// 	log.Error().Err(err).Msg("page wait for left tools error")
-	// 	return nil, err
-	// }
-	// log.Info().Msg("page find left tools")
-	//
-	// locButtons, err := locLeft.Locator("button").All()
-	// if err != nil {
-	// 	log.Error().Err(err).Msg("page get left tools buttons error")
-	// 	return nil, err
-	// }
-	// log.Info().Msg("page click deep think select button")
-	// locThink := locButtons[len(locButtons)-1]
-	// err = locThink.Click(playwright.LocatorClickOptions{
-	// 	Button:  playwright.MouseButtonLeft,
-	// 	Delay:   playwright.Float(10),
-	// 	Timeout: playwright.Float(3 * 1000),
-	// })
-	// if err != nil {
-	// 	log.Error().Err(err).Msg("page click deep think select button error")
-	// 	return nil, err
-	// }
-
-	log.Debug().Msg("page wait for chat textarea")
+	log.Debug().Msg("wait for chat textarea")
 	locText := locChat.Locator("textarea")
-	err = locText.WaitFor()
-	if err != nil {
-		log.Error().Err(err).Msg("page wait for chat textarea error")
-		return nil, err
+	if err = locText.WaitFor(); err != nil {
+		log.Error().Err(err).Msg("wait for chat textarea error")
+		return hdr, err
 	}
-	log.Debug().Msg("page find chat textarea")
 
-	log.Debug().Msg("page fill chat textarea")
-	err = locText.Fill(prompt)
-	if err != nil {
-		log.Error().Err(err).Msg("page fill chat textarea error")
-		return nil, err
+	log.Debug().Msg("fill prompt to chat textarea")
+	if err = locText.Fill(prompt); err != nil {
+		log.Error().Err(err).Msg("fill prompt to chat textarea error")
+		return hdr, err
 	}
-	log.Debug().Msg("page fill chat textarea done")
 
-	log.Debug().Msg("page wait for chat send button")
+	log.Debug().Msg("wait for chat send button")
 	locSend := locChat.GetByTestId("chat_input_send_button")
-	err = locSend.WaitFor()
-	if err != nil {
-		log.Error().Err(err).Msg("page wait for chat send button error")
-		return nil, err
+	if err = locSend.WaitFor(); err != nil {
+		log.Error().Err(err).Msg("wait for chat send button error")
+		return hdr, err
 	}
-	log.Debug().Msg("page find chat send button")
 
-	ch := make(chan *DoubaoMessage)
-	log.Info().Msg("page on console")
+	log.Info().Msg("listen on console sse")
+	hdr.unix.Store(time.Now().Unix())
 	page.OnConsole(func(msg playwright.ConsoleMessage) {
+		if hdr.done.Load() {
+			return
+		}
 		if msg.Type() != "info" {
 			return
 		}
@@ -203,13 +263,14 @@ func (s *Browser) HandleDoubao(prompt string) (*DoubaoHandler, error) {
 		if len(ss) != 3 {
 			return
 		}
+		hdr.unix.Store(time.Now().Unix())
 		switch ss[1] {
 		case "aichat-proxy-sse-new":
 			log.Info().Msg("receive new sse")
 		case "aichat-proxy-sse-closed":
 			log.Warn().Msg("sse closed")
-			ch <- &DoubaoMessage{Finish: "stop"}
-			close(ch)
+			hdr.Ch <- &DoubaoMessage{Finish: "stop"}
+			finish()
 		case "aichat-proxy-sse-error":
 			log.Error().Msgf("sse error: %s", ss[2])
 		case "aichat-proxy-sse-data":
@@ -233,23 +294,31 @@ func (s *Browser) HandleDoubao(prompt string) (*DoubaoHandler, error) {
 				return
 			}
 			if content.Text != "" {
-				ch <- &DoubaoMessage{Id: data.Message.Id, Text: content.Text}
+				hdr.Ch <- &DoubaoMessage{Id: data.Message.Id, Text: content.Text}
 			}
 		}
 	})
 
-	log.Debug().Msg("page click chat send button")
-	err = locSend.Click(playwright.LocatorClickOptions{
-		Button: playwright.MouseButtonLeft,
-		Delay:  playwright.Float(10),
-	})
-	if err != nil {
-		log.Error().Err(err).Msg("page click chat send button error")
-		return nil, err
+	log.Debug().Msg("click chat send button")
+	if err = locSend.Click(); err != nil {
+		log.Error().Err(err).Msg("click chat send button error")
+		return hdr, err
 	}
-	log.Info().Msg("page click chat send button done")
 
-	return &DoubaoHandler{Id: uuid.Must(uuid.NewV7()).String(), Ch: ch}, nil
+	go func() {
+		for {
+			<-time.After(time.Second)
+			if hdr.done.Load() {
+				return
+			}
+			if t := hdr.unix.Load(); time.Now().Unix()-t >= 30 {
+				finish()
+				return
+			}
+		}
+	}()
+
+	return hdr, nil
 }
 
 type doubaoEvent struct {

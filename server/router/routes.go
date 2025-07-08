@@ -4,6 +4,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/swagger"
 
+	"github.com/starudream/aichat-proxy/server/browser"
 	"github.com/starudream/aichat-proxy/server/config"
 	"github.com/starudream/aichat-proxy/server/docs"
 )
@@ -36,6 +37,8 @@ func setupRoutes(app *fiber.App) {
 	app.Get("/health", hdrHealth)
 	app.Get("/version", hdrVersion)
 
+	app.Get("/_sse.js", hdrFileTamperMonkeySSE)
+
 	app.Get("/models", hdrModels)
 	app.Get("/v1/models", hdrModels)
 
@@ -57,9 +60,20 @@ func hdrHealth(c *fiber.Ctx) error {
 // Show Version
 //
 //	@router		/version [get]
-//	@summary	show version
+//	@summary	Show Version
 //	@tags		0_global
 //	@success	200	{object}	config.Version	"OK
 func hdrVersion(c *fiber.Ctx) error {
 	return c.JSON(config.GetVersion())
+}
+
+// TamperMonkey SSE Script File
+//
+//	@router		/_sse.js [get]
+//	@summary	TamperMonkey SSE Script File
+//	@tags		0_global
+//	@produce	plain
+//	@success	200	{plain}	string	"OK
+func hdrFileTamperMonkeySSE(c *fiber.Ctx) error {
+	return c.Type("js").Send(browser.FileTamperMonkeySSE)
 }
