@@ -82,6 +82,7 @@ func doResponse(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Response {
 	}
 	contentType := strings.ToLower(resp.Header.Get("Content-Type"))
 	if strings.HasSuffix(ctx.Req.URL.Path, "/chat/completion") && strings.HasPrefix(contentType, "text/event-stream") {
+		logger.Debug().Str("host", ctx.Req.URL.Host).Str("path", ctx.Req.URL.Path).Msg("proxy response detected")
 		pr, pw := io.Pipe()
 		resp.Body = newTeeReader(resp.Body, pw)
 		go func() {

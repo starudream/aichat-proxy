@@ -87,7 +87,7 @@ func hdrChatCompletions(c *Ctx) error {
 	}
 
 	if !req.Stream {
-		content := hdr.WaitFinish(c.UserContext())
+		content := hdr.WaitFinish(c.Context())
 		created := time.Now().Unix()
 		return c.Status(200).JSON(&ChatCompletionResp{
 			Id:      hdr.Id,
@@ -111,37 +111,33 @@ func hdrChatCompletions(c *Ctx) error {
 
 	c.Status(200).Context().SetBodyStreamWriter(func(w *bufio.Writer) {
 		for {
-			select {
-			case <-c.UserContext().Done():
+			msg, ok := <-hdr.Ch
+			if !ok {
 				return
-			case msg, ok := <-hdr.Ch:
-				if !ok {
-					return
-				}
-				event := json.MustMarshalToString(&ChatCompletionResp{
-					Id:      hdr.Id,
-					Object:  "chat.completion",
-					Created: time.Now().Unix(),
-					Model:   req.Model,
-					Choices: []*ChatCompletionChoice{{
-						Index: cast.To[int64](msg.Id),
-						Message: &ChatCompletionMessage{
-							Role:    "assistant",
-							Content: msg.Text,
-						},
-						FinishReason: msg.Finish,
-					}},
-				})
-				_, err = fmt.Fprintf(w, "data: %s\n\n", event)
-				if err != nil {
-					logger.Ctx(c.UserContext()).Error().Err(err).Msg("write sse data error")
-					return
-				}
-				err = w.Flush()
-				if err != nil {
-					logger.Ctx(c.UserContext()).Error().Err(err).Msg("flush sse data error")
-					return
-				}
+			}
+			event := json.MustMarshalToString(&ChatCompletionResp{
+				Id:      hdr.Id,
+				Object:  "chat.completion",
+				Created: time.Now().Unix(),
+				Model:   req.Model,
+				Choices: []*ChatCompletionChoice{{
+					Index: cast.To[int64](msg.Id),
+					Message: &ChatCompletionMessage{
+						Role:    "assistant",
+						Content: msg.Text,
+					},
+					FinishReason: msg.Finish,
+				}},
+			})
+			_, err = fmt.Fprintf(w, "data: %s\n\n", event)
+			if err != nil {
+				logger.Ctx(c.UserContext()).Error().Err(err).Msg("write sse data error")
+				return
+			}
+			err = w.Flush()
+			if err != nil {
+				logger.Ctx(c.UserContext()).Error().Err(err).Msg("flush sse data error")
+				return
 			}
 		}
 	})
