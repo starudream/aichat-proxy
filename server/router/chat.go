@@ -35,7 +35,8 @@ type ChatCompletionResp struct {
 
 type ChatCompletionChoice struct {
 	Index        int64                  `json:"index"`
-	Message      *ChatCompletionMessage `json:"message"`
+	Message      *ChatCompletionMessage `json:"message,omitempty"`
+	Delta        *ChatCompletionMessage `json:"delta,omitempty"`
 	FinishReason string                 `json:"finish_reason,omitempty"`
 }
 
@@ -117,12 +118,12 @@ func hdrChatCompletions(c *Ctx) error {
 			}
 			event := json.MustMarshalToString(&ChatCompletionResp{
 				Id:      hdr.Id,
-				Object:  "chat.completion",
+				Object:  "chat.completion.chunk",
 				Created: time.Now().Unix(),
 				Model:   req.Model,
 				Choices: []*ChatCompletionChoice{{
 					Index: cast.To[int64](msg.Id),
-					Message: &ChatCompletionMessage{
+					Delta: &ChatCompletionMessage{
 						Role:    "assistant",
 						Content: msg.Text,
 					},
@@ -130,6 +131,9 @@ func hdrChatCompletions(c *Ctx) error {
 				}},
 			})
 			_, err = fmt.Fprintf(w, "data: %s\n\n", event)
+			if msg.Finish != "" {
+				_, _ = fmt.Fprintf(w, "[DONE]\n")
+			}
 			if err != nil {
 				logger.Ctx(c.UserContext()).Error().Err(err).Msg("write sse data error")
 				return
