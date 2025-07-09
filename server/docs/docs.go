@@ -34,51 +34,14 @@ const docTemplate = `{
                     "text/plain"
                 ],
                 "tags": [
-                    "0_global"
+                    "file"
                 ],
                 "summary": "TamperMonkey SSE Script File",
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "plain"
-                        }
-                    }
-                }
-            }
-        },
-        "/chat/completions": {
-            "post": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "description": "Follows the exact same API spec as ` + "`" + `https://platform.openai.com/docs/api-reference/chat` + "`" + `",
-                "produces": [
-                    "application/json",
-                    "text/event-stream"
-                ],
-                "tags": [
-                    "2_chat"
-                ],
-                "summary": "Chat Completions",
-                "parameters": [
-                    {
-                        "description": "Request",
-                        "name": "*",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/router.ChatCompletionReq"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/router.ChatCompletionResp"
+                            "type": "string"
                         }
                     }
                 }
@@ -90,7 +53,7 @@ const docTemplate = `{
                     "text/plain"
                 ],
                 "tags": [
-                    "0_global"
+                    "common"
                 ],
                 "summary": "Health Check",
                 "responses": {
@@ -98,31 +61,6 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "type": "string"
-                        }
-                    }
-                }
-            }
-        },
-        "/models": {
-            "get": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "description": "Follows the exact same API spec as ` + "`" + `https://platform.openai.com/docs/api-reference/models/list` + "`" + `",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "1_model"
-                ],
-                "summary": "Model List",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/router.ListModelResp"
                         }
                     }
                 }
@@ -141,7 +79,7 @@ const docTemplate = `{
                     "text/event-stream"
                 ],
                 "tags": [
-                    "2_chat"
+                    "chat"
                 ],
                 "summary": "Chat Completions",
                 "parameters": [
@@ -177,7 +115,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "1_model"
+                    "model"
                 ],
                 "summary": "Model List",
                 "responses": {
@@ -193,7 +131,7 @@ const docTemplate = `{
         "/version": {
             "get": {
                 "tags": [
-                    "0_global"
+                    "common"
                 ],
                 "summary": "Show Version",
                 "responses": {
@@ -270,6 +208,9 @@ const docTemplate = `{
                 },
                 "model": {
                     "type": "string"
+                },
+                "stream": {
+                    "type": "boolean"
                 }
             }
         },
@@ -334,7 +275,21 @@ const docTemplate = `{
             "name": "Authorization",
             "in": "header"
         }
-    }
+    },
+    "tags": [
+        {
+            "name": "common"
+        },
+        {
+            "name": "file"
+        },
+        {
+            "name": "model"
+        },
+        {
+            "name": "chat"
+        }
+    ]
 }`
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it

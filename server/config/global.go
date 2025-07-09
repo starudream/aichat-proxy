@@ -4,9 +4,6 @@ type Config struct {
 	LogLevel   string `config:"log.level"`
 	LogNoColor bool   `config:"log.nocolor"`
 
-	BrowserProxy  string `config:"browser.proxy"`
-	BrowserBypass string `config:"browser.bypass"`
-
 	ServerAddr          string `config:"server.addr"`
 	ServerFGProfEnabled bool   `config:"server.fgprof.enabled"`
 }
@@ -14,9 +11,6 @@ type Config struct {
 var g = &Config{
 	LogLevel:   "INFO",
 	LogNoColor: false,
-
-	BrowserProxy:  "",
-	BrowserBypass: "",
 
 	ServerAddr:          ServerAddress,
 	ServerFGProfEnabled: false,

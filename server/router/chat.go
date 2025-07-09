@@ -17,6 +17,7 @@ import (
 type ChatCompletionReq struct {
 	Model    string                   `json:"model"`
 	Messages []*ChatCompletionMessage `json:"messages"`
+	Stream   bool                     `json:"stream,omitempty"`
 }
 
 type ChatCompletionMessage struct {
@@ -56,11 +57,10 @@ var chatPrompt = template.Must(template.New("").Parse(`
 
 // Chat Completions
 //
-//	@router			/chat/completions [post]
 //	@router			/v1/chat/completions [post]
 //	@summary		Chat Completions
 //	@description	Follows the exact same API spec as `https://platform.openai.com/docs/api-reference/chat`
-//	@tags			2_chat
+//	@tags			chat
 //	@security		ApiKeyAuth
 //	@produce		json
 //	@produce		text/event-stream
@@ -72,14 +72,36 @@ func hdrChatCompletions(c *Ctx) error {
 		return err
 	}
 
+	if !browser.ExistModel(req.Model) {
+		return NewError(404, "model not found: %q", req.Model)
+	}
+
 	buf := &bytes.Buffer{}
 	if err := chatPrompt.Execute(buf, req); err != nil {
 		return err
 	}
 
-	hdr, err := browser.B().HandleDoubao(buf.String())
+	hdr, err := browser.B().HandleChat(req.Model, buf.String())
 	if err != nil {
 		return err
+	}
+
+	if !req.Stream {
+		content := hdr.WaitFinish(c.UserContext())
+		created := time.Now().Unix()
+		return c.Status(200).JSON(&ChatCompletionResp{
+			Id:      hdr.Id,
+			Object:  "chat.completion",
+			Created: created,
+			Model:   req.Model,
+			Choices: []*ChatCompletionChoice{{
+				Message: &ChatCompletionMessage{
+					Role:    "assistant",
+					Content: content,
+				},
+				FinishReason: "stop",
+			}},
+		})
 	}
 
 	c.Set("Content-Type", "text/event-stream")
@@ -87,12 +109,10 @@ func hdrChatCompletions(c *Ctx) error {
 	c.Set("Connection", "keep-alive")
 	c.Set("Transfer-Encoding", "chunked")
 
-	ctx := c.Status(200).Context()
-
-	ctx.SetBodyStreamWriter(func(w *bufio.Writer) {
+	c.Status(200).Context().SetBodyStreamWriter(func(w *bufio.Writer) {
 		for {
 			select {
-			case <-ctx.Done():
+			case <-c.UserContext().Done():
 				return
 			case msg, ok := <-hdr.Ch:
 				if !ok {

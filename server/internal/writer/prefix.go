@@ -2,6 +2,7 @@ package writer
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"os"
 	"sync"
@@ -17,12 +18,14 @@ type PrefixWriter struct {
 	mu  sync.Mutex
 }
 
-func NewPrefixWriter(pre string, ws ...io.Writer) io.WriteCloser {
+func NewPrefixWriter(pre string, ws ...io.Writer) *PrefixWriter {
 	if len(ws) == 0 || ws[0] == nil {
 		ws = []io.Writer{os.Stdout}
 	}
 	return &PrefixWriter{w: ws[0], pre: conv.StringToBytes(pre)}
 }
+
+var _ io.WriteCloser = (*PrefixWriter)(nil)
 
 func (w *PrefixWriter) Write(bs []byte) (int, error) {
 	w.mu.Lock()
@@ -53,4 +56,8 @@ func (w *PrefixWriter) Close() error {
 		return c.Close()
 	}
 	return nil
+}
+
+func (w *PrefixWriter) Printf(f string, a ...any) {
+	_, _ = w.Write(conv.StringToBytes(fmt.Sprintf(f, a...)))
 }

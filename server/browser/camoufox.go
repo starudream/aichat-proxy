@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"maps"
-	"net/url"
 	"os/exec"
 	"slices"
 	"strings"
@@ -53,7 +52,7 @@ func (p *CamoufoxParams) init() *CamoufoxParams {
 		//goland:noinspection GoAssignmentToReceiver
 		p = &CamoufoxParams{}
 	}
-	if config.DEBUG("BROWSER", "CAMOUFOX") {
+	if config.DEBUG("BROWSER") {
 		p.Debug = true
 	}
 	if len(p.Addons) == 0 {
@@ -63,7 +62,7 @@ func (p *CamoufoxParams) init() *CamoufoxParams {
 		p.VirtualDisplay = ":0.0"
 	}
 	if p.Port <= 0 {
-		p.Port = 9550
+		p.Port = config.CamoufoxPort
 	}
 	p.WsPath = "/ws"
 	if p.OS == "" {
@@ -76,20 +75,7 @@ func (p *CamoufoxParams) init() *CamoufoxParams {
 	}
 	// p.DisableCoop = true
 	p.GeoIP = true
-	if p.Proxy == nil {
-		s := config.G().BrowserProxy
-		if s != "" {
-			u, e := url.Parse(s)
-			if e == nil {
-				p.Proxy = &Proxy{
-					Server:   fmt.Sprintf("%s://%s", u.Scheme, u.Host),
-					Bypass:   config.G().BrowserBypass,
-					Username: u.User.Username(),
-					Password: func() string { w, _ := u.User.Password(); return w }(),
-				}
-			}
-		}
-	}
+	p.Proxy = &Proxy{Server: strings.Join([]string{"http", config.ProxyAddress}, "://")}
 	return p
 }
 
@@ -157,13 +143,17 @@ func GetCamoufoxOptions(ctx context.Context, params *CamoufoxParams) (*CamoufoxO
 	} else {
 		outputS = outputS[idx+8:]
 	}
-	logger.Debug().Msgf("camoufox options: %s", outputS)
+	if config.DEBUG("BROWSER") {
+		logger.Debug().Msgf("camoufox options: %s", outputS)
+	}
 	options, err := json.UnmarshalTo[*CamoufoxOptions](outputS)
 	if err != nil {
 		return nil, err
 	}
-	keys := slices.Collect(maps.Keys(json.MustUnmarshalTo[map[string]any](outputS)))
-	slices.Sort(keys)
-	logger.Debug().Msgf("camoufox options keys: %s", strings.Join(keys, ","))
+	if config.DEBUG("BROWSER") {
+		keys := slices.Collect(maps.Keys(json.MustUnmarshalTo[map[string]any](outputS)))
+		slices.Sort(keys)
+		logger.Debug().Msgf("camoufox options keys: %s", strings.Join(keys, ","))
+	}
 	return options, nil
 }

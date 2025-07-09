@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 
 	"github.com/starudream/aichat-proxy/server/browser"
@@ -39,24 +40,21 @@ func main() {
 
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
-	if ctx.Err() == nil {
-		go func() {
-			select {
-			case <-ctx.Done():
-			case sig := <-ch:
-				println()
-				logger.Info().Msgf("received signal: %s", sig.String())
-				cancel()
-			}
-		}()
-	}
+	go func() {
+		sig := <-ch
+		fmt.Println()
+		logger.Info().Msgf("received signal: %s", sig.String())
+		cancel()
+	}()
 
 	logger.Info().Msg("app starting")
 
-	browser.Run(ctx)
-	router.Start(ctx)
+	wg := &sync.WaitGroup{}
 
-	<-ctx.Done()
+	browser.Start(ctx, wg)
+	router.Start(ctx, wg)
+
+	wg.Wait()
 
 	logger.Info().Msg("app stopped")
 }

@@ -42,6 +42,8 @@ definitions:
         type: array
       model:
         type: string
+      stream:
+        type: boolean
     type: object
   router.ChatCompletionResp:
     properties:
@@ -96,33 +98,10 @@ paths:
         "200":
           description: OK
           schema:
-            type: plain
+            type: string
       summary: TamperMonkey SSE Script File
       tags:
-      - 0_global
-  /chat/completions:
-    post:
-      description: Follows the exact same API spec as `https://platform.openai.com/docs/api-reference/chat`
-      parameters:
-      - description: Request
-        in: body
-        name: '*'
-        required: true
-        schema:
-          $ref: '#/definitions/router.ChatCompletionReq'
-      produces:
-      - application/json
-      - text/event-stream
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/router.ChatCompletionResp'
-      security:
-      - ApiKeyAuth: []
-      summary: Chat Completions
-      tags:
-      - 2_chat
+      - file
   /health:
     get:
       produces:
@@ -134,22 +113,7 @@ paths:
             type: string
       summary: Health Check
       tags:
-      - 0_global
-  /models:
-    get:
-      description: Follows the exact same API spec as `https://platform.openai.com/docs/api-reference/models/list`
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/router.ListModelResp'
-      security:
-      - ApiKeyAuth: []
-      summary: Model List
-      tags:
-      - 1_model
+      - common
   /v1/chat/completions:
     post:
       description: Follows the exact same API spec as `https://platform.openai.com/docs/api-reference/chat`
@@ -172,7 +136,7 @@ paths:
       - ApiKeyAuth: []
       summary: Chat Completions
       tags:
-      - 2_chat
+      - chat
   /v1/models:
     get:
       description: Follows the exact same API spec as `https://platform.openai.com/docs/api-reference/models/list`
@@ -187,7 +151,7 @@ paths:
       - ApiKeyAuth: []
       summary: Model List
       tags:
-      - 1_model
+      - model
   /version:
     get:
       responses:
@@ -197,7 +161,7 @@ paths:
             $ref: '#/definitions/config.Version'
       summary: Show Version
       tags:
-      - 0_global
+      - common
 produces:
 - application/json
 schemes:
@@ -208,3 +172,8 @@ securityDefinitions:
     name: Authorization
     type: apiKey
 swagger: "2.0"
+tags:
+- name: common
+- name: file
+- name: model
+- name: chat

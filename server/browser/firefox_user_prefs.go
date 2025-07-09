@@ -29,8 +29,7 @@ func GetUserPrefs() *UserPrefs {
 		return nil
 	}
 	up := &UserPrefs{Raw: map[string]string{}, Flat: map[string]any{}}
-	sc := bufio.NewScanner(bytes.NewReader(bs))
-	for sc.Scan() {
+	for sc := bufio.NewScanner(bytes.NewReader(bs)); sc.Scan(); {
 		ss := reUserPref.FindStringSubmatch(sc.Text())
 		if len(ss) != 3 {
 			continue

@@ -31,7 +31,7 @@ func init() {
 	zerolog.SetGlobalLevel(lv)
 
 	zl := zerolog.New(loggerWriters()).With().Timestamp()
-	if config.DEBUG() || lv <= zerolog.DebugLevel {
+	if config.DEBUG("LOG") {
 		zl = zl.Caller()
 	}
 	Logger = zl.Logger()

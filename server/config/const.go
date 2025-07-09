@@ -6,6 +6,8 @@ const (
 	EnvPrefix = "AICHAT_PROXY_"
 
 	ServerAddress = ":9540"
+	ProxyAddress  = "127.0.0.1:9543"
+	CamoufoxPort  = 9550
 
 	AppRootPath           = "/app"
 	AddonPath             = AppRootPath + "/addons"

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/gofiber/contrib/fgprof"
@@ -22,9 +23,7 @@ import (
 
 type Ctx = fiber.Ctx
 
-func Start(ctx context.Context) {
-	ctx, cancel := context.WithCancel(ctx)
-
+func Start(ctx context.Context, wg *sync.WaitGroup) {
 	debug := config.DEBUG("SERVER")
 
 	app := fiber.New(fiber.Config{
@@ -56,11 +55,10 @@ func Start(ctx context.Context) {
 	setupRoutes(app)
 
 	go func() {
-		defer cancel()
 		addr := config.G().ServerAddr
 		tcpAddr, _ := net.ResolveTCPAddr(app.Config().Network, addr)
 		if tcpAddr != nil {
-			logger.Info().Str("addr", addr).Msg("http server starting")
+			logger.Info().Int("port", tcpAddr.Port).Msg("http server starting")
 		}
 		err := app.Listen(addr)
 		if err != nil {
@@ -68,7 +66,10 @@ func Start(ctx context.Context) {
 		}
 	}()
 
+	wg.Add(1)
+
 	go func() {
+		defer wg.Done()
 		<-ctx.Done()
 		logger.Warn().Msg("http server stopping")
 		_ = app.ShutdownWithTimeout(3 * time.Second)

@@ -1,5 +1,10 @@
 package router
 
+import (
+	"github.com/starudream/aichat-proxy/server/browser"
+	"github.com/starudream/aichat-proxy/server/config"
+)
+
 type ListModelResp struct {
 	Object string   `json:"object"`
 	Data   []*Model `json:"data"`
@@ -16,17 +21,22 @@ const defaultCreated = 1751731200
 
 // Chat Completions
 //
-//	@router			/models [get]
 //	@router			/v1/models [get]
 //	@summary		Model List
 //	@description	Follows the exact same API spec as `https://platform.openai.com/docs/api-reference/models/list`
-//	@tags			1_model
+//	@tags			model
 //	@security		ApiKeyAuth
 //	@produce		json
 //	@success		200	{object}	ListModelResp
 func hdrModels(c *Ctx) error {
-	return c.JSON(&ListModelResp{
-		Object: "list",
-		Data:   []*Model{}, // todo
-	})
+	models := make([]*Model, 0)
+	for _, m := range browser.Models() {
+		models = append(models, &Model{
+			Id:      m,
+			Object:  "model",
+			Created: defaultCreated,
+			OwnedBy: config.AppName,
+		})
+	}
+	return c.JSON(&ListModelResp{Object: "list", Data: models})
 }
