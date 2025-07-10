@@ -146,6 +146,7 @@ func hdrChatCompletions(c *Ctx) error {
 			if !ok {
 				return
 			}
+			data := "[DONE]"
 			if msg.FinishReason == "" {
 				if msg.ReasoningTag != "" {
 					tag = msg.ReasoningTag
@@ -157,7 +158,7 @@ func hdrChatCompletions(c *Ctx) error {
 				} else {
 					delta.Content = msg.Content
 				}
-				event := json.MustMarshalToString(&ChatCompletionResp{
+				data = json.MustMarshalToString(&ChatCompletionResp{
 					Id:      hdr.Id,
 					Object:  "chat.completion.chunk",
 					Created: created,
@@ -167,10 +168,8 @@ func hdrChatCompletions(c *Ctx) error {
 						Delta: delta,
 					}},
 				})
-				_, err = fmt.Fprintf(w, "data: %s\n\n", event)
-			} else {
-				_, err = fmt.Fprintf(w, "[DONE]\n")
 			}
+			_, err = fmt.Fprintf(w, "data: %s\n\n", data)
 			if err != nil {
 				logger.Ctx(c.UserContext()).Error().Err(err).Msg("write sse data error")
 				return
