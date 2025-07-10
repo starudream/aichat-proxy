@@ -89,7 +89,7 @@ func mdAuth() fiber.Handler {
 	}
 	if len(keys) == 0 {
 		logger.Warn().Msg("api key auth disabled")
-		return nil
+		return func(ctx *fiber.Ctx) error { return ctx.Next() }
 	}
 	return keyauth.New(keyauth.Config{
 		Validator: func(ctx *fiber.Ctx, s string) (bool, error) {
