@@ -19,6 +19,8 @@ jobs:
       VERSION: ${{ inputs.version }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: init
         run: |
           cd camoufox

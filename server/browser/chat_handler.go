@@ -45,9 +45,6 @@ func Models() (ss []string) {
 type ChatHandler struct {
 	Id string
 	Ch chan *ChatMessage
-
-	unix atomic.Int64
-	done atomic.Bool
 }
 
 func (h *ChatHandler) WaitFinish(ctx context.Context) (string, string) {
@@ -118,8 +115,9 @@ func (s *Browser) HandleChat(model, prompt string) (hdr *ChatHandler, err error)
 
 	log := logger.With().Str("model", model).Str("handlerId", hdr.Id).Logger()
 
+	done := atomic.Bool{}
 	finish := func() {
-		if hdr.done.CompareAndSwap(false, true) {
+		if done.CompareAndSwap(false, true) {
 			log.Debug().Msg("handle finish")
 			time.Sleep(200 * time.Millisecond)
 			close(hdr.Ch)
@@ -142,16 +140,17 @@ func (s *Browser) HandleChat(model, prompt string) (hdr *ChatHandler, err error)
 		return nil, err
 	}
 
-	hdr.unix.Store(time.Now().Unix())
+	unix := atomic.Int64{}
+	unix.Store(time.Now().Unix())
 
 	go func() {
 		flag := false
 		for {
-			if hdr.done.Load() {
+			if done.Load() {
 				return
 			}
 			v := <-proxyCh
-			hdr.unix.Store(time.Now().Unix())
+			unix.Store(time.Now().Unix())
 			switch x := v.(type) {
 			case bool:
 				if x {
@@ -180,10 +179,10 @@ func (s *Browser) HandleChat(model, prompt string) (hdr *ChatHandler, err error)
 	go func() {
 		for {
 			time.Sleep(time.Second)
-			if hdr.done.Load() {
+			if done.Load() {
 				return
 			}
-			if t := hdr.unix.Load(); time.Now().Unix()-t >= 30 {
+			if t := unix.Load(); time.Now().Unix()-t >= 30 {
 				finish()
 				return
 			}

@@ -32,10 +32,6 @@ bin: tidy				##@ Build the application.
 bin-linux: tidy			##@ Build the application for linux.
 	@GOOS=linux CGO_ENABLED=0 go build -tags 'release' -ldflags '-s -w' -o ./bin/$(PROJECT)-linux $(MODULE)/server
 
-.PHONY: version-bin
-version-bin:			##@ Print the version of the application.
-	@go version -m ./bin/$(PROJECT)
-
 .PHONY: run
 run: bin				##@ Run the application.
 	@./bin/$(PROJECT) $(ARGS)

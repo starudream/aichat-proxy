@@ -25,6 +25,18 @@ jobs:
       CAMOUFOX_VERSION: ${{ inputs.camoufox-version }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+          check-latest: true
+      - name: init
+        run: |
+          go version
+          make swag bin
+          go version -m bin/aichat-proxy
+          ./bin/aichat-proxy -v
       - uses: docker/login-action@v3
         with:
           username: starudream
@@ -41,6 +53,7 @@ jobs:
           tags: starudream/aichat-proxy:${{ env.VERSION }},ghcr.io/starudream/aichat-proxy:${{ env.VERSION }}
           build-args: |
             CAMOUFOX_VERSION=${{ env.CAMOUFOX_VERSION }}
+          context: .
           platforms: linux/amd64
           pull: true
           push: true
