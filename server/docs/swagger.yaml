@@ -20,53 +20,92 @@ definitions:
     type: object
   router.ChatCompletionChoice:
     properties:
+      delta:
+        allOf:
+        - $ref: '#/definitions/router.ChatCompletionMessage'
+        description: 模型输出的增量内容（流式）
       finish_reason:
+        description: 模型停止输出原因
         type: string
       index:
+        description: 消息索引
         type: integer
       message:
-        $ref: '#/definitions/router.ChatCompletionMessage'
+        allOf:
+        - $ref: '#/definitions/router.ChatCompletionMessage'
+        description: 模型输出消息列表（非流式）
     type: object
   router.ChatCompletionMessage:
     properties:
       content:
+        description: 内容
+        type: string
+      reasoning_content:
+        description: 推理内容（仅响应）
         type: string
       role:
+        description: 角色
         type: string
     type: object
   router.ChatCompletionReq:
     properties:
       messages:
+        description: 消息列表
         items:
           $ref: '#/definitions/router.ChatCompletionMessage'
         type: array
       model:
+        description: 模型 Id
         type: string
       stream:
+        description: 是否流式
         type: boolean
     type: object
   router.ChatCompletionResp:
     properties:
       choices:
+        description: 模型输出内容
         items:
           $ref: '#/definitions/router.ChatCompletionChoice'
         type: array
       created:
+        description: 请求创建的时间戳（秒级）
         type: integer
       id:
+        description: 请求的唯一标识
         type: string
       model:
+        description: 模型 Id
         type: string
       object:
+        description: 响应类型
         type: string
+      usage:
+        allOf:
+        - $ref: '#/definitions/router.ChatCompletionUsage'
+        description: 用量
+    type: object
+  router.ChatCompletionUsage:
+    properties:
+      completion_tokens:
+        description: 输出 tokens
+        type: integer
+      prompt_tokens:
+        description: 输入 tokens
+        type: integer
+      total_tokens:
+        description: 总消耗 tokens
+        type: integer
     type: object
   router.ListModelResp:
     properties:
       data:
+        description: 模型列表
         items:
           $ref: '#/definitions/router.Model'
         type: array
       object:
+        description: 固定为 list
         type: string
     type: object
   router.Model:
@@ -74,6 +113,7 @@ definitions:
       created:
         type: integer
       id:
+        description: 模型 Id
         type: string
       object:
         type: string
@@ -92,6 +132,7 @@ info:
 paths:
   /_sse.js:
     get:
+      deprecated: true
       produces:
       - text/plain
       responses:

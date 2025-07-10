@@ -37,6 +37,7 @@ const docTemplate = `{
                     "file"
                 ],
                 "summary": "TamperMonkey SSE Script File",
+                "deprecated": true,
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -175,14 +176,29 @@ const docTemplate = `{
         "router.ChatCompletionChoice": {
             "type": "object",
             "properties": {
+                "delta": {
+                    "description": "模型输出的增量内容（流式）",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/router.ChatCompletionMessage"
+                        }
+                    ]
+                },
                 "finish_reason": {
+                    "description": "模型停止输出原因",
                     "type": "string"
                 },
                 "index": {
+                    "description": "消息索引",
                     "type": "integer"
                 },
                 "message": {
-                    "$ref": "#/definitions/router.ChatCompletionMessage"
+                    "description": "模型输出消息列表（非流式）",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/router.ChatCompletionMessage"
+                        }
+                    ]
                 }
             }
         },
@@ -190,9 +206,15 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "content": {
+                    "description": "内容",
+                    "type": "string"
+                },
+                "reasoning_content": {
+                    "description": "推理内容（仅响应）",
                     "type": "string"
                 },
                 "role": {
+                    "description": "角色",
                     "type": "string"
                 }
             }
@@ -201,15 +223,18 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "messages": {
+                    "description": "消息列表",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/router.ChatCompletionMessage"
                     }
                 },
                 "model": {
+                    "description": "模型 Id",
                     "type": "string"
                 },
                 "stream": {
+                    "description": "是否流式",
                     "type": "boolean"
                 }
             }
@@ -218,22 +243,52 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "choices": {
+                    "description": "模型输出内容",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/router.ChatCompletionChoice"
                     }
                 },
                 "created": {
+                    "description": "请求创建的时间戳（秒级）",
                     "type": "integer"
                 },
                 "id": {
+                    "description": "请求的唯一标识",
                     "type": "string"
                 },
                 "model": {
+                    "description": "模型 Id",
                     "type": "string"
                 },
                 "object": {
+                    "description": "响应类型",
                     "type": "string"
+                },
+                "usage": {
+                    "description": "用量",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/router.ChatCompletionUsage"
+                        }
+                    ]
+                }
+            }
+        },
+        "router.ChatCompletionUsage": {
+            "type": "object",
+            "properties": {
+                "completion_tokens": {
+                    "description": "输出 tokens",
+                    "type": "integer"
+                },
+                "prompt_tokens": {
+                    "description": "输入 tokens",
+                    "type": "integer"
+                },
+                "total_tokens": {
+                    "description": "总消耗 tokens",
+                    "type": "integer"
                 }
             }
         },
@@ -241,12 +296,14 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "data": {
+                    "description": "模型列表",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/router.Model"
                     }
                 },
                 "object": {
+                    "description": "固定为 list",
                     "type": "string"
                 }
             }
@@ -258,6 +315,7 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "id": {
+                    "description": "模型 Id",
                     "type": "string"
                 },
                 "object": {

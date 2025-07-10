@@ -143,9 +143,7 @@ func GetCamoufoxOptions(ctx context.Context, params *CamoufoxParams) (*CamoufoxO
 	} else {
 		outputS = outputS[idx+8:]
 	}
-	if config.DEBUG("BROWSER") {
-		logger.Debug().Msgf("camoufox options: %s", outputS)
-	}
+	logger.Trace().Msgf("camoufox options: %s", outputS)
 	options, err := json.UnmarshalTo[*CamoufoxOptions](outputS)
 	if err != nil {
 		return nil, err
@@ -153,7 +151,7 @@ func GetCamoufoxOptions(ctx context.Context, params *CamoufoxParams) (*CamoufoxO
 	if config.DEBUG("BROWSER") {
 		keys := slices.Collect(maps.Keys(json.MustUnmarshalTo[map[string]any](outputS)))
 		slices.Sort(keys)
-		logger.Debug().Msgf("camoufox options keys: %s", strings.Join(keys, ","))
+		logger.Trace().Msgf("camoufox options keys: %s", strings.Join(keys, ","))
 	}
 	return options, nil
 }

@@ -90,6 +90,102 @@ func (h *chatDoubaoHandler) Send() (err error) {
 	return nil
 }
 
+type doubaoEvent struct {
+	EventId   string `json:"event_id"`
+	EventType int    `json:"event_type"`
+	EventData string `json:"event_data"`
+}
+
+// 正文
+// {
+//  "message": {
+//    "content_type": 2001,
+//    "content": "{\"text\":\"Hello\"}",
+//    "id": ""
+//  }
+// }
+// 建议
+// {
+//  "message": {
+//    "content_type": 2002,
+//    "content": "{\"suggest\":\"Can you tell me some interesting facts?\",\"suggestions\":[\"Can you tell me some interesting facts?\"]}",
+//    "id": ""
+//  }
+// }
+// 联网搜索
+// {
+//  "message": {
+//    "content_type": 2003,
+//    "content": "{\"type\":1,\"text\":\"正在搜索\"}",
+//    "id": ""
+//  }
+// }
+// 深度思考开始
+// {
+//  "message": {
+//    "content_type": 10040,
+//    "content": "{\"finish_title\":\"深度思考中\"}",
+//    "id": ""
+//  }
+// }
+// 深度思考内容
+// {
+//  "message": {
+//    "content_type": 10000,
+//    "content": "{\"text\":\"用户说\\\"hello\"}",
+//    "id": "",
+//    "pid": ""
+//  }
+// }
+// 深度思考结束
+// {
+//  "message": {
+//    "content_type": 10040,
+//    "content": "{\"finish_title\":\"已完成思考\"}",
+//    "reset": true,
+//    "id": "",
+//    "is_finish": true
+//  }
+// }
+// 正文内容
+// {
+//  "message": {
+//    "content_type": 10000,
+//    "content": "{\"text\":\"Hello! 很高兴能和\"}",
+//    "id": ""
+//  }
+// }
+// 正文结束
+// {
+//  "message": {
+//    "content_type": 10000,
+//    "content": "{}",
+//    "id": ""
+//  },
+//  "is_finish": true
+// }
+
+type doubaoEventData struct {
+	Message struct {
+		Id string `json:"id"`
+		//  2001 正文
+		//  2002 建议
+		//  2003 搜索提示
+		// 10000 正文
+		// 10025 参考资料
+		// 10040 深度思考开始/结束
+		ContentType int    `json:"content_type"`
+		Content     string `json:"content"`
+		// 思考结束
+		IsFinish bool `json:"is_finish"`
+	} `json:"message"`
+}
+
+type doubaoEventContent struct {
+	Type int    `json:"type,omitempty"`
+	Text string `json:"text"`
+}
+
 func (h *chatDoubaoHandler) Unmarshal(s string) *ChatMessage {
 	s = strings.TrimSpace(strings.TrimPrefix(s, "data:"))
 	if s == "" {
@@ -113,26 +209,17 @@ func (h *chatDoubaoHandler) Unmarshal(s string) *ChatMessage {
 		h.log.Error().Err(err).Msg("unmarshal doubao event content error")
 		return nil
 	}
-	if content.Text == "" {
-		return nil
+	switch data.Message.ContentType {
+	case 2001, 10000:
+		if content.Type == 0 && content.Text != "" {
+			return &ChatMessage{Index: event.EventId, Content: content.Text}
+		}
+	case 10040:
+		tag := "1"
+		if data.Message.IsFinish {
+			tag = "2"
+		}
+		return &ChatMessage{Index: event.EventId, ReasoningTag: tag}
 	}
-	return &ChatMessage{Id: event.EventId, Text: content.Text}
-}
-
-type doubaoEvent struct {
-	EventId   string `json:"event_id"`
-	EventType int    `json:"event_type"`
-	EventData string `json:"event_data"`
-}
-
-type doubaoEventData struct {
-	Message struct {
-		Id          string `json:"id"`
-		ContentType int    `json:"content_type"`
-		Content     string `json:"content"`
-	} `json:"message"`
-}
-
-type doubaoEventContent struct {
-	Text string `json:"text"`
+	return nil
 }

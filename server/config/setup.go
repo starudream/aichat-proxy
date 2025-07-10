@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"reflect"
-	"runtime"
 	"strings"
 
 	"github.com/knadh/koanf/parsers/dotenv"
@@ -14,6 +12,7 @@ import (
 	"github.com/knadh/koanf/v2"
 
 	"github.com/starudream/aichat-proxy/server/internal/json"
+	"github.com/starudream/aichat-proxy/server/internal/osx"
 )
 
 var loaders = []func() (koanf.Provider, koanf.Parser){
@@ -30,7 +29,7 @@ func init() {
 		}
 		err := k.Load(p, pa)
 		if err != nil {
-			name := filepath.Base(runtime.FuncForPC(reflect.ValueOf(loader).Pointer()).Name())
+			name := filepath.Base(osx.FuncName(loader))
 			_, _ = fmt.Fprintf(os.Stderr, "init config with %s error: %v\n", name, err)
 			os.Exit(1)
 		}

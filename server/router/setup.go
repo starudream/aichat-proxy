@@ -18,13 +18,14 @@ import (
 
 	"github.com/starudream/aichat-proxy/server/config"
 	"github.com/starudream/aichat-proxy/server/internal/json"
+	"github.com/starudream/aichat-proxy/server/internal/osx"
 	"github.com/starudream/aichat-proxy/server/logger"
 )
 
 type Ctx = fiber.Ctx
 
 func Start(ctx context.Context, wg *sync.WaitGroup) {
-	debug := config.DEBUG("SERVER")
+	// debug := config.DEBUG("SERVER")
 
 	app := fiber.New(fiber.Config{
 		AppName:               config.AppName,
@@ -32,8 +33,10 @@ func Start(ctx context.Context, wg *sync.WaitGroup) {
 		JSONEncoder:           json.Marshal,
 		JSONDecoder:           json.Unmarshal,
 		ErrorHandler:          hdrError,
-		EnablePrintRoutes:     debug,
-		DisableStartupMessage: !debug,
+		DisableStartupMessage: true,
+
+		// EnablePrintRoutes:     debug,
+		// DisableStartupMessage: !debug,
 	})
 
 	mds := []func() fiber.Handler{
@@ -97,10 +100,11 @@ func mdRecover() fiber.Handler {
 		EnableStackTrace: true,
 		StackTraceHandler: func(c *fiber.Ctx, v any) {
 			log := logger.Ctx(c.UserContext()).Error()
-			if e, ok := v.(error); ok {
-				log = log.Err(e)
+			if e, ok := v.(error); ok && e != nil {
+				log.Err(e).Msgf("recover from panic:\n%s", osx.Stack())
+			} else if e != nil {
+				log.Msgf("recover from panic: %v", v)
 			}
-			log.Msgf("recover from panic: %s", cast.To[string](v))
 		},
 	})
 }

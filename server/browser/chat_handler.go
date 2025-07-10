@@ -50,8 +50,9 @@ type ChatHandler struct {
 	done atomic.Bool
 }
 
-func (h *ChatHandler) WaitFinish(ctx context.Context) string {
-	buf := &bytes.Buffer{}
+func (h *ChatHandler) WaitFinish(ctx context.Context) (string, string) {
+	content, reason := &bytes.Buffer{}, &bytes.Buffer{}
+	tag := ""
 	for {
 		next := false
 		select {
@@ -62,19 +63,30 @@ func (h *ChatHandler) WaitFinish(ctx context.Context) string {
 				break
 			}
 			next = true
-			buf.WriteString(msg.Text)
+			if msg.ReasoningTag != "" {
+				tag = msg.ReasoningTag
+				continue
+			}
+			if tag == "1" {
+				reason.WriteString(msg.Content)
+			} else {
+				content.WriteString(msg.Content)
+			}
 		}
 		if !next {
 			break
 		}
 	}
-	return buf.String()
+	return content.String(), reason.String()
 }
 
 type ChatMessage struct {
-	Id     string `json:"id"`
-	Text   string `json:"text"`
-	Finish string `json:"finish"`
+	Index        string `json:"index,omitempty"`
+	Content      string `json:"content,omitempty"`
+	FinishReason string `json:"finish_reason,omitempty"`
+
+	// 1开始 2结束
+	ReasoningTag string `json:"-"`
 }
 
 func (s *Browser) HandleChat(model, prompt string) (hdr *ChatHandler, err error) {
@@ -101,14 +113,14 @@ func (s *Browser) HandleChat(model, prompt string) (hdr *ChatHandler, err error)
 
 	hdr = &ChatHandler{
 		Id: uuid.Must(uuid.NewV7()).String(),
-		Ch: make(chan *ChatMessage),
+		Ch: make(chan *ChatMessage, 1024),
 	}
 
-	log := logger.With().Str("model", model).Str("id", hdr.Id).Logger()
+	log := logger.With().Str("model", model).Str("handlerId", hdr.Id).Logger()
 
 	finish := func() {
 		if hdr.done.CompareAndSwap(false, true) {
-			log.Debug().Msg("finish")
+			log.Debug().Msg("handle finish")
 			time.Sleep(200 * time.Millisecond)
 			close(hdr.Ch)
 			s.mu.Unlock()
@@ -143,11 +155,11 @@ func (s *Browser) HandleChat(model, prompt string) (hdr *ChatHandler, err error)
 			switch x := v.(type) {
 			case bool:
 				if x {
-					log.Debug().Msg("handle sse start")
+					log.Debug().Msg("listen sse start")
 					flag = true
 				} else if flag {
-					hdr.Ch <- &ChatMessage{Finish: "stop"}
-					log.Debug().Msg("handle sse finish")
+					hdr.Ch <- &ChatMessage{FinishReason: "stop"}
+					log.Debug().Msg("listen sse finish")
 					finish()
 				}
 			case string:

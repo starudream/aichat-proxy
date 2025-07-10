@@ -44,7 +44,7 @@ func startProxy(ctx context.Context, wg *sync.WaitGroup) {
 		}
 	}()
 
-	proxyCh = make(chan any)
+	proxyCh = make(chan any, 4096)
 
 	wg.Add(1)
 
@@ -66,7 +66,7 @@ var mitmHosts = map[string]struct{}{
 func onRequest(req *http.Request, _ *goproxy.ProxyCtx) bool {
 	_, ok := mitmHosts[req.URL.Host]
 	if ok {
-		logger.Debug().Str("host", req.URL.Host).Msg("proxy request detected")
+		logger.Trace().Str("host", req.URL.Host).Msg("proxy request detected")
 	}
 	return ok
 }
@@ -89,17 +89,39 @@ func doResponse(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Response {
 			defer func() { _ = pr.Close() }()
 			proxyCh <- true
 			logger.Debug().Msg("proxy listen sse start")
-			sc := bufio.NewScanner(pr)
-			for sc.Scan() {
-				text := sc.Text()
+			for rd := bufio.NewReader(pr); ; {
+				text, err := rd.ReadString('\n')
+				if err != nil {
+					if !errors.Is(err, io.EOF) {
+						logger.Error().Err(err).Msg("proxy listen sse error")
+					}
+					break
+				}
+				text = strings.TrimRight(text, "\r\n")
 				if text == "" {
 					continue
 				}
 				logger.Debug().Msgf("proxy sse raw: %s", text)
-				proxyCh <- text
-			}
-			if err := sc.Err(); err != nil {
-				logger.Error().Err(err).Msg("proxy listen sse error")
+				select {
+				case proxyCh <- text:
+					// normal
+				default:
+					logger.Warn().Msg("proxy sse channel full, drop all messages")
+					count := 0
+					for {
+						out := false
+						select {
+						case <-proxyCh:
+							count++
+						default:
+							out = true
+						}
+						if out {
+							break
+						}
+					}
+					logger.Info().Int("count", count).Msg("proxy sse channel clear")
+				}
 			}
 			logger.Debug().Msg("proxy listen sse finish")
 			proxyCh <- false

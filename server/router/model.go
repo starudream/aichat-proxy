@@ -6,11 +6,14 @@ import (
 )
 
 type ListModelResp struct {
-	Object string   `json:"object"`
-	Data   []*Model `json:"data"`
+	// 固定为 list
+	Object string `json:"object"`
+	// 模型列表
+	Data []*Model `json:"data"`
 }
 
 type Model struct {
+	// 模型 Id
 	Id      string `json:"id"`
 	Object  string `json:"object"`
 	Created int64  `json:"created"`

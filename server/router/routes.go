@@ -73,6 +73,7 @@ func hdrVersion(c *fiber.Ctx) error {
 
 // TamperMonkey SSE Script File
 //
+//	@deprecated
 //	@router		/_sse.js [get]
 //	@summary	TamperMonkey SSE Script File
 //	@tags		file

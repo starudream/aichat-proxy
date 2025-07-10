@@ -2,11 +2,11 @@ package browser
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"strings"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	"github.com/playwright-community/playwright-go"
 
@@ -40,11 +40,26 @@ func startBrowser(ctx context.Context, wg *sync.WaitGroup) {
 	b.cp = &CamoufoxParams{}
 	b.co, err = GetCamoufoxOptions(ctx, b.cp)
 	if err != nil {
-		logger.Fatal().Err(err).Msg("camoufox get launch options error")
+		logger.Fatal().Msgf("camoufox get launch options error: %v", err)
 	}
 
-	logger.Info().Msg("wait for playwright launch browser ready, may take a few seconds")
+	b.runPlaywright()
+	b.launchBrowser()
 
+	wg.Add(1)
+
+	go func() {
+		defer wg.Done()
+		<-ctx.Done()
+		logger.Warn().Msg("browser closing")
+		_ = b.bc.Close()
+		logger.Info().Msg("browser closed")
+	}()
+}
+
+func (s *Browser) runPlaywright() {
+	logger.Info().Msg("wait for playwright ready")
+	var err error
 	b.pw, err = playwright.Run(&playwright.RunOptions{
 		SkipInstallBrowsers: true,
 		Verbose:             true,
@@ -55,7 +70,11 @@ func startBrowser(ctx context.Context, wg *sync.WaitGroup) {
 	if err != nil {
 		logger.Fatal().Err(err).Msg("playwright run error")
 	}
+}
 
+func (s *Browser) launchBrowser() {
+	logger.Info().Msg("wait for browser ready, may take a few seconds")
+	var err error
 	b.bc, err = b.pw.Firefox.LaunchPersistentContext(config.Userdata0Path, playwright.BrowserTypeLaunchPersistentContextOptions{
 		ExecutablePath:    playwright.String(b.co.ExecutablePath),
 		Headless:          playwright.Bool(b.co.Headless),
@@ -72,17 +91,6 @@ func startBrowser(ctx context.Context, wg *sync.WaitGroup) {
 	if err != nil {
 		logger.Fatal().Err(err).Msg("playwright launch persistent context error")
 	}
-
-	wg.Add(1)
-
-	go func() {
-		defer wg.Done()
-		<-ctx.Done()
-		logger.Warn().Msg("browser closing")
-		_ = b.bc.Close()
-		logger.Info().Msg("browser closed")
-	}()
-
 	logger.Info().Msg("browser ready")
 }
 
@@ -92,20 +100,26 @@ func (s *Browser) openPage(url string) (page playwright.Page, err error) {
 
 	pages := s.bc.Pages()
 	for i := range pages {
-		if pages[i].URL() == "about:blank" {
+		if pages[i].URL() == url {
+			return pages[i], nil
+		}
+		if pages[i].URL() == "about:blank" || strings.HasPrefix(pages[i].URL(), url) {
 			page = pages[i]
 			break
-		}
-		if strings.HasPrefix(pages[i].URL(), url) {
-			return pages[i], nil
 		}
 	}
 
 	if page == nil {
 		page, err = s.bc.NewPage()
 		if err != nil {
-			logger.Error().Err(err).Msg("open new page error")
-			return nil, err
+			if errors.Is(err, playwright.ErrTargetClosed) {
+				logger.Warn().Msg("detected browser closed, restart browser")
+				s.launchBrowser()
+				page = s.bc.Pages()[0]
+			} else {
+				logger.Error().Err(err).Msg("open new page error")
+				return nil, err
+			}
 		}
 	}
 
@@ -117,8 +131,6 @@ func (s *Browser) openPage(url string) (page playwright.Page, err error) {
 		logger.Error().Err(err).Msg("page goto error")
 		return nil, err
 	}
-
-	time.Sleep(time.Second)
 
 	logger.Info().Msgf("page goto %q ready", url)
 
