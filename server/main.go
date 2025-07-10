@@ -9,10 +9,10 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/starudream/aichat-proxy/server/api"
 	"github.com/starudream/aichat-proxy/server/browser"
 	"github.com/starudream/aichat-proxy/server/config"
 	"github.com/starudream/aichat-proxy/server/logger"
-	"github.com/starudream/aichat-proxy/server/router"
 )
 
 var (
@@ -52,7 +52,7 @@ func main() {
 	wg := &sync.WaitGroup{}
 
 	browser.Start(ctx, wg)
-	router.Start(ctx, wg)
+	api.Start(ctx, wg)
 
 	wg.Wait()
 

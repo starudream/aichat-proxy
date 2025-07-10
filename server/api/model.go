@@ -1,4 +1,4 @@
-package router
+package api
 
 import (
 	"github.com/starudream/aichat-proxy/server/browser"
