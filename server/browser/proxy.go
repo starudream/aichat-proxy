@@ -37,7 +37,7 @@ func startProxy(ctx context.Context, wg *sync.WaitGroup) {
 	}
 
 	go func() {
-		logger.Info().Int("port", ln.Addr().(*net.TCPAddr).Port).Msg("proxy server starting")
+		logger.Info().Str("addr", ln.Addr().String()).Msg("proxy server starting")
 		err = srv.Serve(ln)
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			logger.Fatal().Err(err).Msg("proxy server run error")
@@ -102,6 +102,11 @@ func doResponse(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Response {
 					continue
 				}
 				logger.Debug().Msgf("proxy sse raw: %s", text)
+				// err = redis.Do(redis.B().Publish().Channel(redis.Key("sse:doubao")).Message(text).Build()).Error()
+				// if err != nil {
+				// 	logger.Error().Err(err).Msg("proxy sse publish error")
+				// 	break
+				// }
 				select {
 				case proxyCh <- text:
 					// normal

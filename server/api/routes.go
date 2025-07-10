@@ -4,7 +4,6 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/swagger"
 
-	"github.com/starudream/aichat-proxy/server/browser"
 	"github.com/starudream/aichat-proxy/server/config"
 	"github.com/starudream/aichat-proxy/server/docs"
 )
@@ -18,7 +17,6 @@ import (
 //	@license.name				Apache-2.0
 //	@license.url				https://www.apache.org/licenses/LICENSE-2.0
 //	@tag.name					common
-//	@tag.name					file
 //	@tag.name					model
 //	@tag.name					chat
 //	@accept						json
@@ -38,47 +36,32 @@ func setupSwagger(app *fiber.App) {
 }
 
 func setupRoutes(app *fiber.App) {
-	app.Get("/health", hdrHealth)
-	app.Get("/version", hdrVersion)
+	app.Get("/", hdrIndex)
 
-	app.Get("/_sse.js", hdrFileTamperMonkeySSE)
-
-	v1 := app.Group("/v1", mdLogger())
+	v1 := app.Group("/v1", mdLogger(), mdAuth())
 	{
 		v1.Get("/models", hdrModels)
 		v1.Post("/chat/completions", hdrChatCompletions)
 	}
 }
 
-// Health Check
-//
-//	@router		/health [get]
-//	@summary	Health Check
-//	@tags		common
-//	@produce	plain
-//	@success	200	{string}	string	"OK
-func hdrHealth(c *fiber.Ctx) error {
-	return c.SendString("OK")
+type Index struct {
+	AppName    string `json:"app_name"`
+	GitVersion string `json:"git_version"`
+	BuildDate  string `json:"build_date"`
 }
 
-// Show Version
+// Index
 //
-//	@router		/version [get]
-//	@summary	Show Version
+//	@router		/ [get]
+//	@summary	Index
 //	@tags		common
-//	@success	200	{object}	config.Version	"OK
-func hdrVersion(c *fiber.Ctx) error {
-	return c.JSON(config.GetVersion())
-}
-
-// TamperMonkey SSE Script File
-//
-//	@deprecated
-//	@router		/_sse.js [get]
-//	@summary	TamperMonkey SSE Script File
-//	@tags		file
-//	@produce	plain
-//	@success	200	{string}	string	"OK
-func hdrFileTamperMonkeySSE(c *fiber.Ctx) error {
-	return c.Type("js").Send(browser.FileTamperMonkeySSE)
+//	@success	200	{object}	Index
+func hdrIndex(c *fiber.Ctx) error {
+	ver := config.GetVersion()
+	return c.JSON(&Index{
+		AppName:    config.AppName,
+		GitVersion: ver.GitVersion,
+		BuildDate:  ver.BuildDate,
+	})
 }

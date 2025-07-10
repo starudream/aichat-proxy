@@ -28,40 +28,17 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/_sse.js": {
+        "/": {
             "get": {
-                "produces": [
-                    "text/plain"
-                ],
-                "tags": [
-                    "file"
-                ],
-                "summary": "TamperMonkey SSE Script File",
-                "deprecated": true,
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            }
-        },
-        "/health": {
-            "get": {
-                "produces": [
-                    "text/plain"
-                ],
                 "tags": [
                     "common"
                 ],
-                "summary": "Health Check",
+                "summary": "Index",
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/definitions/api.Index"
                         }
                     }
                 }
@@ -90,7 +67,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/router.ChatCompletionReq"
+                            "$ref": "#/definitions/api.ChatCompletionReq"
                         }
                     }
                 ],
@@ -98,7 +75,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/router.ChatCompletionResp"
+                            "$ref": "#/definitions/api.ChatCompletionResp"
                         }
                     }
                 }
@@ -112,9 +89,6 @@ const docTemplate = `{
                     }
                 ],
                 "description": "Follows the exact same API spec as ` + "`" + `https://platform.openai.com/docs/api-reference/models/list` + "`" + `",
-                "produces": [
-                    "application/json"
-                ],
                 "tags": [
                     "model"
                 ],
@@ -123,23 +97,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/router.ListModelResp"
-                        }
-                    }
-                }
-            }
-        },
-        "/version": {
-            "get": {
-                "tags": [
-                    "common"
-                ],
-                "summary": "Show Version",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/config.Version"
+                            "$ref": "#/definitions/api.ListModelResp"
                         }
                     }
                 }
@@ -147,40 +105,14 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "config.Version": {
-            "type": "object",
-            "properties": {
-                "buildDate": {
-                    "type": "string"
-                },
-                "compiler": {
-                    "type": "string"
-                },
-                "gitCommit": {
-                    "type": "string"
-                },
-                "gitTreeState": {
-                    "type": "string"
-                },
-                "gitVersion": {
-                    "type": "string"
-                },
-                "goVersion": {
-                    "type": "string"
-                },
-                "platform": {
-                    "type": "string"
-                }
-            }
-        },
-        "router.ChatCompletionChoice": {
+        "api.ChatCompletionChoice": {
             "type": "object",
             "properties": {
                 "delta": {
                     "description": "模型输出的增量内容（流式）",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/router.ChatCompletionMessage"
+                            "$ref": "#/definitions/api.ChatCompletionMessage"
                         }
                     ]
                 },
@@ -196,13 +128,13 @@ const docTemplate = `{
                     "description": "模型输出消息列表（非流式）",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/router.ChatCompletionMessage"
+                            "$ref": "#/definitions/api.ChatCompletionMessage"
                         }
                     ]
                 }
             }
         },
-        "router.ChatCompletionMessage": {
+        "api.ChatCompletionMessage": {
             "type": "object",
             "properties": {
                 "content": {
@@ -219,14 +151,14 @@ const docTemplate = `{
                 }
             }
         },
-        "router.ChatCompletionReq": {
+        "api.ChatCompletionReq": {
             "type": "object",
             "properties": {
                 "messages": {
                     "description": "消息列表",
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/router.ChatCompletionMessage"
+                        "$ref": "#/definitions/api.ChatCompletionMessage"
                     }
                 },
                 "model": {
@@ -239,14 +171,14 @@ const docTemplate = `{
                 }
             }
         },
-        "router.ChatCompletionResp": {
+        "api.ChatCompletionResp": {
             "type": "object",
             "properties": {
                 "choices": {
                     "description": "模型输出内容",
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/router.ChatCompletionChoice"
+                        "$ref": "#/definitions/api.ChatCompletionChoice"
                     }
                 },
                 "created": {
@@ -269,13 +201,13 @@ const docTemplate = `{
                     "description": "用量",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/router.ChatCompletionUsage"
+                            "$ref": "#/definitions/api.ChatCompletionUsage"
                         }
                     ]
                 }
             }
         },
-        "router.ChatCompletionUsage": {
+        "api.ChatCompletionUsage": {
             "type": "object",
             "properties": {
                 "completion_tokens": {
@@ -292,14 +224,28 @@ const docTemplate = `{
                 }
             }
         },
-        "router.ListModelResp": {
+        "api.Index": {
+            "type": "object",
+            "properties": {
+                "app_name": {
+                    "type": "string"
+                },
+                "build_date": {
+                    "type": "string"
+                },
+                "git_version": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.ListModelResp": {
             "type": "object",
             "properties": {
                 "data": {
                     "description": "模型列表",
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/router.Model"
+                        "$ref": "#/definitions/api.Model"
                     }
                 },
                 "object": {
@@ -308,7 +254,7 @@ const docTemplate = `{
                 }
             }
         },
-        "router.Model": {
+        "api.Model": {
             "type": "object",
             "properties": {
                 "created": {
@@ -337,9 +283,6 @@ const docTemplate = `{
     "tags": [
         {
             "name": "common"
-        },
-        {
-            "name": "file"
         },
         {
             "name": "model"

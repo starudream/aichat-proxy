@@ -10,6 +10,7 @@ import (
 	"github.com/gofiber/contrib/fgprof"
 	"github.com/gofiber/contrib/fiberzerolog"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/keyauth"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/gofiber/fiber/v2/middleware/requestid"
 	"github.com/google/uuid"
@@ -57,13 +58,14 @@ func Start(ctx context.Context, wg *sync.WaitGroup) {
 	setupSwagger(app)
 	setupRoutes(app)
 
+	ln, err := net.Listen("tcp", config.G().ServerAddr)
+	if err != nil {
+		logger.Fatal().Err(err).Msg("http server listen error")
+	}
+
 	go func() {
-		addr := config.G().ServerAddr
-		tcpAddr, _ := net.ResolveTCPAddr(app.Config().Network, addr)
-		if tcpAddr != nil {
-			logger.Info().Int("port", tcpAddr.Port).Msg("http server starting")
-		}
-		err := app.Listen(addr)
+		logger.Info().Str("addr", ln.Addr().String()).Msg("http server starting")
+		err = app.Listener(ln)
 		if err != nil {
 			logger.Fatal().Err(err).Msg("http server run error")
 		}
@@ -78,6 +80,26 @@ func Start(ctx context.Context, wg *sync.WaitGroup) {
 		_ = app.ShutdownWithTimeout(3 * time.Second)
 		logger.Info().Msg("http server stopped")
 	}()
+}
+
+func mdAuth() fiber.Handler {
+	keys := map[string]struct{}{}
+	for _, v := range config.G().ApiKeys {
+		keys[v] = struct{}{}
+	}
+	if len(keys) == 0 {
+		logger.Warn().Msg("api key auth disabled")
+		return nil
+	}
+	return keyauth.New(keyauth.Config{
+		Validator: func(ctx *fiber.Ctx, s string) (bool, error) {
+			_, ok := keys[s]
+			if !ok {
+				return false, keyauth.ErrMissingOrMalformedAPIKey
+			}
+			return true, nil
+		},
+	})
 }
 
 func mdRequestId() fiber.Handler {

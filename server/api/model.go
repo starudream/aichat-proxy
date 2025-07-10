@@ -29,7 +29,6 @@ const defaultCreated = 1751731200
 //	@description	Follows the exact same API spec as `https://platform.openai.com/docs/api-reference/models/list`
 //	@tags			model
 //	@security		ApiKeyAuth
-//	@produce		json
 //	@success		200	{object}	ListModelResp
 func hdrModels(c *Ctx) error {
 	models := make([]*Model, 0)

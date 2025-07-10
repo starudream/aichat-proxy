@@ -38,8 +38,8 @@ run: bin				##@ Run the application.
 
 .PHONY: swag
 swag:					##@ Generate swagger files.
-	@go run github.com/swaggo/swag/cmd/swag@latest fmt -d server -g router/routes.go
-	@go run github.com/swaggo/swag/cmd/swag@latest init -o server/docs -ot go,yaml -d server -g router/routes.go
+	@go run github.com/swaggo/swag/cmd/swag@latest fmt -d server -g api/routes.go
+	@go run github.com/swaggo/swag/cmd/swag@latest init -o server/docs -ot go,yaml -d server -g api/routes.go
 
 .PHONY: help
 help:					##@ (Default) Show help.
