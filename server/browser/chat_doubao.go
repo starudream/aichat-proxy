@@ -209,17 +209,15 @@ func (h *chatDoubaoHandler) Unmarshal(s string) *ChatMessage {
 		h.log.Error().Err(err).Msg("unmarshal doubao event content error")
 		return nil
 	}
-	switch data.Message.ContentType {
-	case 2001, 10000:
-		if content.Type == 0 && content.Text != "" {
-			return &ChatMessage{Index: event.EventId, Content: content.Text}
-		}
-	case 10040:
+	if data.Message.ContentType == 10040 {
 		tag := "1"
 		if data.Message.IsFinish {
 			tag = "2"
 		}
 		return &ChatMessage{Index: event.EventId, ReasoningTag: tag}
+	}
+	if content.Type == 0 && content.Text != "" {
+		return &ChatMessage{Index: event.EventId, Content: content.Text}
 	}
 	return nil
 }
