@@ -89,7 +89,7 @@ type ChatMessage struct {
 func (s *Browser) HandleChat(model, prompt string) (hdr *ChatHandler, err error) {
 	ch, ok := chatHandlers[model]
 	if !ok {
-		return hdr, fmt.Errorf("model not found: %q", model)
+		return hdr, fmt.Errorf("model not found: %s", model)
 	}
 
 	defer func() {

@@ -70,6 +70,7 @@ func (s *Browser) runPlaywright() {
 	if err != nil {
 		logger.Fatal().Err(err).Msg("playwright run error")
 	}
+	logger.Info().Msg("playwright ready")
 }
 
 func (s *Browser) launchBrowser() {

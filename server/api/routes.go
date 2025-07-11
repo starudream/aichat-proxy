@@ -1,8 +1,8 @@
 package api
 
 import (
-	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/swagger"
+	"github.com/labstack/echo/v4"
+	swagger "github.com/swaggo/echo-swagger"
 
 	"github.com/starudream/aichat-proxy/server/config"
 	"github.com/starudream/aichat-proxy/server/docs"
@@ -25,24 +25,21 @@ import (
 //	@securityDefinitions.apikey	ApiKeyAuth
 //	@in							header
 //	@name						Authorization
-func setupSwagger(app *fiber.App) {
-	docs.SwaggerInfo.Version = config.GetVersion().GitVersion
-	app.Get("/swagger/*", swagger.New(swagger.Config{
-		TagsSorter:             "'alpha'",
-		TryItOutEnabled:        true,
-		RequestSnippetsEnabled: true,
-		DisplayRequestDuration: true,
-	}))
-}
-
-func setupRoutes(app *fiber.App) {
-	app.Get("/", hdrIndex)
+func setupRoutes(app *echo.Echo) {
+	app.GET("/", hdrIndex)
 
 	v1 := app.Group("/v1", mdLogger(), mdAuth())
 	{
-		v1.Get("/models", hdrModels)
-		v1.Post("/chat/completions", hdrChatCompletions)
+		v1.GET("/models", hdrModels)
+		v1.POST("/chat/completions", hdrChatCompletions)
 	}
+}
+
+func setupSwagger(app *echo.Echo) {
+	docs.SwaggerInfo.Version = config.GetVersion().GitVersion
+	app.GET("/swagger/*", swagger.EchoWrapHandler(
+		swagger.PersistAuthorization(true),
+	))
 }
 
 type Index struct {
@@ -57,9 +54,9 @@ type Index struct {
 //	@summary	Index
 //	@tags		common
 //	@success	200	{object}	Index
-func hdrIndex(c *fiber.Ctx) error {
+func hdrIndex(c echo.Context) error {
 	ver := config.GetVersion()
-	return c.JSON(&Index{
+	return c.JSON(200, &Index{
 		AppName:    config.AppName,
 		GitVersion: ver.GitVersion,
 		BuildDate:  ver.BuildDate,

@@ -1,7 +1,6 @@
 package api
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
 	"text/template"
@@ -10,13 +9,14 @@ import (
 	"github.com/spf13/cast"
 
 	"github.com/starudream/aichat-proxy/server/browser"
+	"github.com/starudream/aichat-proxy/server/internal/errx"
 	"github.com/starudream/aichat-proxy/server/internal/json"
 	"github.com/starudream/aichat-proxy/server/logger"
 )
 
 type ChatCompletionReq struct {
 	// 模型 Id
-	Model string `json:"model"`
+	Model string `json:"model" validate:"required"`
 	// 消息列表
 	Messages []*ChatCompletionMessage `json:"messages"`
 	// 是否流式
@@ -25,7 +25,7 @@ type ChatCompletionReq struct {
 
 type ChatCompletionMessage struct {
 	// 角色
-	Role string `json:"role"`
+	Role string `json:"role" validate:"required"`
 	// 内容
 	Content string `json:"content"`
 	// 推理内容（仅响应）
@@ -94,14 +94,17 @@ var chatPrompt = template.Must(template.New("").Parse(`
 //	@produce		text/event-stream
 //	@param			*	body		ChatCompletionReq	true	"Request"
 //	@success		200	{object}	ChatCompletionResp
-func hdrChatCompletions(c *Ctx) error {
+func hdrChatCompletions(c Ctx) error {
 	req := &ChatCompletionReq{}
-	if err := c.BodyParser(req); err != nil {
+	if err := c.Bind(req); err != nil {
+		return err
+	}
+	if err := c.Validate(req); err != nil {
 		return err
 	}
 
 	if !browser.ExistModel(req.Model) {
-		return NewError(404, "model not found: %q", req.Model)
+		return errx.NotFound().WithMsgf("model not found: %s", req.Model)
 	}
 
 	buf := &bytes.Buffer{}
@@ -109,19 +112,21 @@ func hdrChatCompletions(c *Ctx) error {
 		return err
 	}
 
-	created := time.Now().Unix()
+	unix := time.Now().Unix()
 
 	hdr, err := browser.B().HandleChat(req.Model, buf.String())
 	if err != nil {
 		return err
 	}
 
+	ctx := c.Request().Context()
+
 	if !req.Stream {
-		content, reason := hdr.WaitFinish(c.Context())
-		return c.Status(200).JSON(&ChatCompletionResp{
+		content, reason := hdr.WaitFinish(ctx)
+		return c.JSON(200, &ChatCompletionResp{
 			Id:      hdr.Id,
 			Object:  "chat.completion",
-			Created: created,
+			Created: unix,
 			Model:   req.Model,
 			Choices: []*ChatCompletionChoice{{
 				Message: &ChatCompletionMessage{
@@ -134,17 +139,20 @@ func hdrChatCompletions(c *Ctx) error {
 		})
 	}
 
-	c.Set("Content-Type", "text/event-stream")
-	c.Set("Cache-Control", "no-cache")
-	c.Set("Connection", "keep-alive")
-	c.Set("Transfer-Encoding", "chunked")
+	w := c.Response()
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("Transfer-Encoding", "chunked")
 
-	c.Status(200).Context().SetBodyStreamWriter(func(w *bufio.Writer) {
-		tag := ""
-		for {
-			msg, ok := <-hdr.Ch
+	tag := ""
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case msg, ok := <-hdr.Ch:
 			if !ok {
-				return
+				return nil
 			}
 			data := "[DONE]"
 			if msg.FinishReason == "" {
@@ -161,7 +169,7 @@ func hdrChatCompletions(c *Ctx) error {
 				data = json.MustMarshalToString(&ChatCompletionResp{
 					Id:      hdr.Id,
 					Object:  "chat.completion.chunk",
-					Created: created,
+					Created: unix,
 					Model:   req.Model,
 					Choices: []*ChatCompletionChoice{{
 						Index: cast.To[int64](msg.Index),
@@ -171,16 +179,10 @@ func hdrChatCompletions(c *Ctx) error {
 			}
 			_, err = fmt.Fprintf(w, "data: %s\n\n", data)
 			if err != nil {
-				logger.Ctx(c.UserContext()).Error().Err(err).Msg("write sse data error")
-				return
+				logger.Ctx(ctx).Error().Err(err).Msg("write sse data error")
+				return err
 			}
-			err = w.Flush()
-			if err != nil {
-				logger.Ctx(c.UserContext()).Error().Err(err).Msg("flush sse data error")
-				return
-			}
+			w.Flush()
 		}
-	})
-
-	return nil
+	}
 }

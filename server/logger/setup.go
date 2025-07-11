@@ -3,6 +3,7 @@ package logger
 import (
 	"fmt"
 	"io"
+	stdlog "log"
 	"log/slog"
 	"os"
 	"strings"
@@ -15,6 +16,11 @@ import (
 
 	"github.com/starudream/aichat-proxy/server/config"
 	"github.com/starudream/aichat-proxy/server/internal/json"
+)
+
+var (
+	logs *slog.Logger
+	loge *stdlog.Logger
 )
 
 func init() {
@@ -38,7 +44,13 @@ func init() {
 	log.Logger = Logger
 	zerolog.DefaultContextLogger = &Logger
 
-	slog.SetDefault(slog.New(slogzerolog.Option{Level: slog.LevelInfo, Logger: &Logger}.NewZerologHandler()))
+	logs = slog.New(slogzerolog.Option{Level: slog.LevelInfo, Logger: &Logger}.NewZerologHandler())
+	slog.SetDefault(logs)
+
+	loge = slog.NewLogLogger(logs.Handler(), slog.LevelInfo)
+	stdlog.SetOutput(loge.Writer())
+	stdlog.SetFlags(0)
+	stdlog.SetPrefix("")
 }
 
 func loggerWriters() io.Writer {

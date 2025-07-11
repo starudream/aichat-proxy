@@ -2,50 +2,41 @@ package api
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	stdlog "log"
 	"net"
+	"net/http"
 	"sync"
 	"time"
 
-	"github.com/gofiber/contrib/fgprof"
-	"github.com/gofiber/contrib/fiberzerolog"
-	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/keyauth"
-	"github.com/gofiber/fiber/v2/middleware/recover"
-	"github.com/gofiber/fiber/v2/middleware/requestid"
 	"github.com/google/uuid"
-	"github.com/rotisserie/eris"
-	"github.com/spf13/cast"
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
+	"github.com/ziflex/lecho/v3"
 
 	"github.com/starudream/aichat-proxy/server/config"
-	"github.com/starudream/aichat-proxy/server/internal/json"
+	"github.com/starudream/aichat-proxy/server/internal/echox"
 	"github.com/starudream/aichat-proxy/server/internal/osx"
 	"github.com/starudream/aichat-proxy/server/logger"
 )
 
-type Ctx = fiber.Ctx
+type Ctx = echo.Context
 
 func Start(ctx context.Context, wg *sync.WaitGroup) {
-	// debug := config.DEBUG("SERVER")
+	app := echo.New()
+	app.HideBanner = true
+	app.HidePort = true
+	app.StdLogger = stdlog.Default()
+	app.JSONSerializer = echox.JSONSerializer{}
+	app.Validator = echox.Validator{}
+	app.Logger = lecho.From(logger.Logger)
+	app.Debug = config.DEBUG("SERVER")
+	app.HTTPErrorHandler = echox.ErrorHandler(app)
 
-	app := fiber.New(fiber.Config{
-		AppName:               config.AppName,
-		ServerHeader:          config.AppName,
-		JSONEncoder:           json.Marshal,
-		JSONDecoder:           json.Unmarshal,
-		ErrorHandler:          hdrError,
-		DisableStartupMessage: true,
-
-		// EnablePrintRoutes:     debug,
-		// DisableStartupMessage: !debug,
-	})
-
-	mds := []func() fiber.Handler{
+	mds := []func() echo.MiddlewareFunc{
 		mdRequestId,
-		mdRequestIdCtx,
 		mdRecover,
-		// mdLogger,
-		mdFGProf,
 	}
 	for i := range mds {
 		md := mds[i]()
@@ -55,18 +46,19 @@ func Start(ctx context.Context, wg *sync.WaitGroup) {
 		app.Use(md)
 	}
 
-	setupSwagger(app)
 	setupRoutes(app)
+	setupSwagger(app)
 
 	ln, err := net.Listen("tcp", config.G().ServerAddr)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("http server listen error")
 	}
+	app.Listener = ln
 
 	go func() {
 		logger.Info().Str("addr", ln.Addr().String()).Msg("http server starting")
-		err = app.Listener(ln)
-		if err != nil {
+		err = app.Start(config.G().ServerAddr)
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			logger.Fatal().Err(err).Msg("http server run error")
 		}
 	}()
@@ -77,106 +69,82 @@ func Start(ctx context.Context, wg *sync.WaitGroup) {
 		defer wg.Done()
 		<-ctx.Done()
 		logger.Warn().Msg("http server stopping")
-		_ = app.ShutdownWithTimeout(3 * time.Second)
+		_ctx, _cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer _cancel()
+		_ = app.Shutdown(_ctx)
 		logger.Info().Msg("http server stopped")
 	}()
 }
 
-func mdAuth() fiber.Handler {
+func mdAuth() echo.MiddlewareFunc {
 	keys := map[string]struct{}{}
 	for _, v := range config.G().ApiKeys {
 		keys[v] = struct{}{}
 	}
 	if len(keys) == 0 {
 		logger.Warn().Msg("api key auth disabled")
-		return func(ctx *fiber.Ctx) error { return ctx.Next() }
+		return func(next echo.HandlerFunc) echo.HandlerFunc {
+			return func(c echo.Context) error { return next(c) }
+		}
 	}
-	return keyauth.New(keyauth.Config{
-		Validator: func(ctx *fiber.Ctx, s string) (bool, error) {
-			_, ok := keys[s]
+	return middleware.KeyAuthWithConfig(middleware.KeyAuthConfig{
+		Validator: func(key string, c echo.Context) (bool, error) {
+			_, ok := keys[key]
 			if !ok {
-				return false, keyauth.ErrMissingOrMalformedAPIKey
+				return false, fmt.Errorf("invalid api key")
 			}
 			return true, nil
 		},
 	})
 }
 
-func mdRequestId() fiber.Handler {
-	return requestid.New(requestid.Config{
-		Generator:  uuid.Must(uuid.NewV7()).String,
-		ContextKey: fiberzerolog.FieldRequestID,
-	})
-}
-
-func mdRequestIdCtx() fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		log := logger.Ctx(c.UserContext()).With().Str(fiberzerolog.FieldRequestID, cast.To[string](c.Locals(fiberzerolog.FieldRequestID)))
-		c.SetUserContext(log.Logger().WithContext(c.UserContext()))
-		return c.Next()
-	}
-}
-
-func mdRecover() fiber.Handler {
-	return recover.New(recover.Config{
-		EnableStackTrace: true,
-		StackTraceHandler: func(c *fiber.Ctx, v any) {
-			log := logger.Ctx(c.UserContext()).Error()
-			if e, ok := v.(error); ok && e != nil {
-				log.Err(e).Msgf("recover from panic:\n%s", osx.Stack())
-			} else if e != nil {
-				log.Msgf("recover from panic: %v", v)
-			}
+func mdRequestId() echo.MiddlewareFunc {
+	return middleware.RequestIDWithConfig(middleware.RequestIDConfig{
+		Generator:    uuid.Must(uuid.NewV7()).String,
+		TargetHeader: echo.HeaderXRequestID,
+		RequestIDHandler: func(c echo.Context, tid string) {
+			// c.Set("requestId", tid)
+			c.Request().WithContext(logger.With().Str("requestId", tid).Logger().WithContext(c.Request().Context()))
 		},
 	})
 }
 
-func mdLogger() fiber.Handler {
-	return fiberzerolog.New(fiberzerolog.Config{
-		GetLogger:   func(c *fiber.Ctx) logger.ZLogger { return *logger.Ctx(c.UserContext()) },
-		WrapHeaders: true,
-		Fields: []string{
-			fiberzerolog.FieldProtocol,
-			fiberzerolog.FieldIP,
-			fiberzerolog.FieldHost,
-			fiberzerolog.FieldPath,
-			fiberzerolog.FieldURL,
-			fiberzerolog.FieldUserAgent,
-			fiberzerolog.FieldLatency,
-			fiberzerolog.FieldStatus,
-			fiberzerolog.FieldRoute,
-			fiberzerolog.FieldMethod,
-			fiberzerolog.FieldRequestID,
-			fiberzerolog.FieldError,
+func mdRecover() echo.MiddlewareFunc {
+	return middleware.RecoverWithConfig(middleware.RecoverConfig{
+		DisablePrintStack: true,
+		LogLevel:          4,
+		LogErrorFunc: func(c echo.Context, err error, _ []byte) error {
+			logger.Ctx(c.Request().Context()).Err(err).Msgf("recover from panic:\n%s", osx.Stack())
+			return err
 		},
 	})
 }
 
-func mdFGProf() fiber.Handler {
-	if !config.G().ServerFGProfEnabled {
-		return nil
-	}
-	return fgprof.New(fgprof.Config{})
-}
-
-func hdrError(c *fiber.Ctx, err error) error {
-	var e *fiber.Error
-	if !eris.As(err, &e) {
-		e = fiber.ErrInternalServerError
-	}
-	return c.Status(e.Code).JSON(e)
-}
-
-func NewError(code int, args ...any) *fiber.Error {
-	if len(args) == 0 {
-		return fiber.NewError(code)
-	}
-	switch len(args) {
-	case 0:
-		return fiber.NewError(code)
-	case 1:
-		return fiber.NewError(code, cast.To[string](args[0]))
-	default:
-		return fiber.NewError(code, fmt.Sprintf(cast.To[string](args[0]), args[1:]...))
-	}
+func mdLogger() echo.MiddlewareFunc {
+	return middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
+		LogValuesFunc: func(c echo.Context, vs middleware.RequestLoggerValues) error {
+			logger.Ctx(c.Request().Context()).
+				Info().
+				Err(vs.Error).
+				Dur("latency", vs.Latency).
+				Str("protocol", vs.Protocol).
+				Str("ip", vs.RemoteIP).
+				Str("method", vs.Method).
+				Str("route", vs.RoutePath).
+				Str("requestId", vs.RequestID).
+				Str("ua", vs.UserAgent).
+				Int("status", vs.Status).
+				Msg("new request")
+			return nil
+		},
+		LogLatency:   true,
+		LogProtocol:  true,
+		LogRemoteIP:  true,
+		LogMethod:    true,
+		LogRoutePath: true,
+		LogRequestID: true,
+		LogUserAgent: true,
+		LogStatus:    true,
+		LogError:     true,
+	})
 }

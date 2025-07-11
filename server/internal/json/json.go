@@ -23,6 +23,9 @@ var (
 
 	Unmarshal           = json.Unmarshal
 	UnmarshalFromString = json.UnmarshalFromString
+
+	NewEncoder = json.NewEncoder
+	NewDecoder = json.NewDecoder
 )
 
 func MustMarshal(v any) []byte {

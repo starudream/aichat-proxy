@@ -30,7 +30,7 @@ const defaultCreated = 1751731200
 //	@tags			model
 //	@security		ApiKeyAuth
 //	@success		200	{object}	ListModelResp
-func hdrModels(c *Ctx) error {
+func hdrModels(c Ctx) error {
 	models := make([]*Model, 0)
 	for _, m := range browser.Models() {
 		models = append(models, &Model{
@@ -40,5 +40,5 @@ func hdrModels(c *Ctx) error {
 			OwnedBy: config.AppName,
 		})
 	}
-	return c.JSON(&ListModelResp{Object: "list", Data: models})
+	return c.JSON(200, &ListModelResp{Object: "list", Data: models})
 }

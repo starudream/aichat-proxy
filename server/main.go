@@ -13,7 +13,6 @@ import (
 	"github.com/starudream/aichat-proxy/server/browser"
 	"github.com/starudream/aichat-proxy/server/config"
 	"github.com/starudream/aichat-proxy/server/logger"
-	"github.com/starudream/aichat-proxy/server/redis"
 )
 
 var (
@@ -52,7 +51,6 @@ func main() {
 
 	wg := &sync.WaitGroup{}
 
-	redis.Connect(ctx, wg)
 	browser.Start(ctx, wg)
 	api.Start(ctx, wg)
 

@@ -102,11 +102,6 @@ func doResponse(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Response {
 					continue
 				}
 				logger.Debug().Msgf("proxy sse raw: %s", text)
-				// err = redis.Do(redis.B().Publish().Channel(redis.Key("sse:doubao")).Message(text).Build()).Error()
-				// if err != nil {
-				// 	logger.Error().Err(err).Msg("proxy sse publish error")
-				// 	break
-				// }
 				select {
 				case proxyCh <- text:
 					// normal
