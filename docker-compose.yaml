@@ -12,13 +12,4 @@ services:
       - "./data/userdata:/app/userdata"
     ports:
       - "9540:9540" # aichat-proxy api
-      # - "9550:9550" # camoufox websocket
       - "9560:9560" # vnc
-
-  redis:
-    image: redis:8
-    command: redis-server --requirepass 12345678 --maxmemory-policy volatile-lru --appendonly yes
-    volumes:
-      - "./data/redis:/data"
-    ports:
-      - "6379:6379"
