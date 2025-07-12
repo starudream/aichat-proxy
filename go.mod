@@ -3,6 +3,7 @@ module github.com/starudream/aichat-proxy
 go 1.24
 
 require (
+	github.com/andybalholm/brotli v1.2.0
 	github.com/bytedance/sonic v1.13.3
 	github.com/elazarl/goproxy v1.7.2
 	github.com/go-playground/validator/v10 v10.27.0
@@ -65,7 +66,7 @@ require (
 	golang.org/x/sys v0.34.0 // indirect
 	golang.org/x/text v0.27.0 // indirect
 	golang.org/x/time v0.12.0 // indirect
-	golang.org/x/tools v0.34.0 // indirect
+	golang.org/x/tools v0.35.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

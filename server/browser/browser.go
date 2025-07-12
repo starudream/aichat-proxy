@@ -92,6 +92,7 @@ func (s *Browser) launchBrowser() {
 	if err != nil {
 		logger.Fatal().Err(err).Msg("playwright launch persistent context error")
 	}
+	b.bc.SetDefaultTimeout(10 * 1000)
 	logger.Info().Msg("browser ready")
 }
 

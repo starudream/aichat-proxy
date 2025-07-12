@@ -17,7 +17,7 @@ import (
 type chatHandler interface {
 	Name() string
 	URL() string
-	Setup(page playwright.Page, log logger.ZLogger)
+	Setup(options HandleChatOptions)
 	Input(prompt string) error
 	Send() error
 	Unmarshal(s string) *ChatMessage
@@ -49,7 +49,6 @@ type ChatHandler struct {
 
 func (h *ChatHandler) WaitFinish(ctx context.Context) (string, string) {
 	content, reason := &bytes.Buffer{}, &bytes.Buffer{}
-	tag := ""
 	for {
 		next := false
 		select {
@@ -60,14 +59,10 @@ func (h *ChatHandler) WaitFinish(ctx context.Context) (string, string) {
 				break
 			}
 			next = true
-			if msg.ReasoningTag != "" {
-				tag = msg.ReasoningTag
-				continue
-			}
-			if tag == "1" {
-				reason.WriteString(msg.Content)
-			} else {
+			if msg.Content != "" {
 				content.WriteString(msg.Content)
+			} else if msg.ReasoningContent != "" {
+				reason.WriteString(msg.ReasoningContent)
 			}
 		}
 		if !next {
@@ -78,15 +73,21 @@ func (h *ChatHandler) WaitFinish(ctx context.Context) (string, string) {
 }
 
 type ChatMessage struct {
-	Index        string `json:"index,omitempty"`
-	Content      string `json:"content,omitempty"`
-	FinishReason string `json:"finish_reason,omitempty"`
-
-	// 1开始 2结束
-	ReasoningTag string `json:"-"`
+	Index            string `json:"index,omitempty"`
+	Content          string `json:"content,omitempty"`
+	ReasoningContent string `json:"reasoning_content,omitempty"`
+	FinishReason     string `json:"finish_reason,omitempty"`
 }
 
-func (s *Browser) HandleChat(model, prompt string) (hdr *ChatHandler, err error) {
+type HandleChatOptions struct {
+	log  logger.ZLogger
+	page playwright.Page
+
+	Thinking  string
+	WebSearch string
+}
+
+func (s *Browser) HandleChat(ctx context.Context, model, prompt string, options HandleChatOptions) (hdr *ChatHandler, err error) {
 	ch, ok := chatHandlers[model]
 	if !ok {
 		return hdr, fmt.Errorf("model not found: %s", model)
@@ -126,6 +127,11 @@ func (s *Browser) HandleChat(model, prompt string) (hdr *ChatHandler, err error)
 		}
 	}
 
+	go func() {
+		<-ctx.Done()
+		finish()
+	}()
+
 	log.Debug().Msg("acquire lock")
 	s.mu.Lock()
 	defer func() {
@@ -134,7 +140,9 @@ func (s *Browser) HandleChat(model, prompt string) (hdr *ChatHandler, err error)
 		}
 	}()
 
-	ch.Setup(page, log)
+	options.log = log
+	options.page = page
+	ch.Setup(options)
 
 	if err = ch.Input(prompt); err != nil {
 		return nil, err

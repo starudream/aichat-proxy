@@ -15,10 +15,14 @@ func init() {
 }
 
 type chatDoubaoHandler struct {
-	page playwright.Page
+	options HandleChatOptions
+
 	log  logger.ZLogger
+	page playwright.Page
 
 	locChat playwright.Locator
+
+	reasoning atomic.Bool
 }
 
 func (h *chatDoubaoHandler) Name() string {
@@ -29,9 +33,10 @@ func (h *chatDoubaoHandler) URL() string {
 	return "https://www.doubao.com/chat/"
 }
 
-func (h *chatDoubaoHandler) Setup(page playwright.Page, log logger.ZLogger) {
-	h.page = page
-	h.log = log
+func (h *chatDoubaoHandler) Setup(options HandleChatOptions) {
+	h.log = options.log
+	h.page = options.page
+	h.options = options
 }
 
 func (h *chatDoubaoHandler) Input(prompt string) (err error) {
@@ -67,13 +72,15 @@ func (h *chatDoubaoHandler) Input(prompt string) (err error) {
 
 	h.log.Debug().Msg("wait for create conversation button")
 	locCreate := h.page.GetByRole("button", playwright.PageGetByRoleOptions{Name: "新对话"})
-	if err = locCreate.WaitFor(); err == nil {
-		if disabled, _ := locCreate.IsDisabled(); !disabled {
-			h.log.Debug().Msg("click create conversation button")
-			if err = locCreate.Click(); err != nil {
-				h.log.Error().Err(err).Msg("click create conversation button error")
-				return err
-			}
+	if err = locCreate.WaitFor(); err != nil {
+		h.log.Error().Err(err).Msg("wait for create conversation button error")
+		return err
+	}
+	if disabled, _ := locCreate.IsDisabled(); !disabled {
+		h.log.Debug().Msg("click create conversation button")
+		if err = locCreate.Click(); err != nil {
+			h.log.Error().Err(err).Msg("click create conversation button error")
+			return err
 		}
 	}
 
@@ -238,22 +245,26 @@ func (h *chatDoubaoHandler) Unmarshal(s string) *ChatMessage {
 		return nil
 	}
 	if data.Message.ContentType == 2003 {
-		tag := "1"
-		if content.Type == 6 {
-			tag = "2"
+		if content.Type == 5 {
+			h.reasoning.Store(true)
+		} else if content.Type == 6 {
+			h.reasoning.Store(false)
 		}
-		return &ChatMessage{Index: event.EventId, ReasoningTag: tag}
+		return nil
 	} else if data.Message.ContentType == 10040 {
-		tag := "1"
 		if data.Message.IsFinish {
-			tag = "2"
+			h.reasoning.Store(false)
+		} else {
+			h.reasoning.Store(true)
 		}
-		return &ChatMessage{Index: event.EventId, ReasoningTag: tag}
+		return nil
 	}
-	if content.Text != "" {
-		return &ChatMessage{Index: event.EventId, Content: content.Text}
-	} else if content.Think != "" {
-		return &ChatMessage{Index: event.EventId, Content: content.Think}
+	text := content.Text
+	if content.Think != "" {
+		text = content.Think
 	}
-	return nil
+	if h.reasoning.Load() {
+		return &ChatMessage{Index: event.EventId, ReasoningContent: text}
+	}
+	return &ChatMessage{Index: event.EventId, Content: text}
 }

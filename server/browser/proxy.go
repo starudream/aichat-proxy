@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/andybalholm/brotli"
 	"github.com/elazarl/goproxy"
 	lru "github.com/hashicorp/golang-lru/v2"
 
@@ -59,14 +60,26 @@ func startProxy(ctx context.Context, wg *sync.WaitGroup) {
 	}()
 }
 
-var mitmHosts = map[string]struct{}{
-	"www.doubao.com:443": {},
+type mitmModule struct {
+	Name   string
+	Suffix string
+}
+
+var mitmHosts = map[string]*mitmModule{
+	"www.doubao.com:443": {
+		Name:   "doubao",
+		Suffix: "/chat/completion",
+	},
+	"chat.qwen.ai:443": {
+		Name:   "qwen",
+		Suffix: "/chat/completions",
+	},
 }
 
 func onRequest(req *http.Request, _ *goproxy.ProxyCtx) bool {
 	_, ok := mitmHosts[req.URL.Host]
 	if ok {
-		logger.Trace().Str("host", req.URL.Host).Msg("proxy request detected")
+		logger.Debug().Str("host", req.URL.Host).Msg("proxy request detected")
 	}
 	return ok
 }
@@ -77,11 +90,16 @@ func doResponse(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Response {
 	if resp == nil {
 		return resp
 	}
-	if _, ok := mitmHosts[ctx.Req.URL.Host]; !ok {
+	module, ok := mitmHosts[ctx.Req.URL.Host]
+	if !ok {
 		return resp
 	}
 	contentType := strings.ToLower(resp.Header.Get("Content-Type"))
-	if strings.HasSuffix(ctx.Req.URL.Path, "/chat/completion") && strings.HasPrefix(contentType, "text/event-stream") {
+	contentEncoding := strings.ToLower(resp.Header.Get("Content-Encoding"))
+	if strings.HasPrefix(contentType, "text/event-stream") {
+		if !strings.HasSuffix(ctx.Req.URL.Path, module.Suffix) {
+			return resp
+		}
 		logger.Debug().Str("host", ctx.Req.URL.Host).Str("path", ctx.Req.URL.Path).Msg("proxy response detected")
 		pr, pw := io.Pipe()
 		resp.Body = newTeeReader(resp.Body, pw)
@@ -89,7 +107,12 @@ func doResponse(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Response {
 			defer func() { _ = pr.Close() }()
 			proxyCh <- true
 			logger.Debug().Msg("proxy listen sse start")
-			for rd := bufio.NewReader(pr); ; {
+			var rr io.Reader = pr
+			switch contentEncoding {
+			case "br":
+				rr = brotli.NewReader(pr)
+			}
+			for rd := bufio.NewReader(rr); ; {
 				text, err := rd.ReadString('\n')
 				if err != nil {
 					if !errors.Is(err, io.EOF) {

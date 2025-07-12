@@ -21,6 +21,10 @@ type ChatCompletionReq struct {
 	Messages []*ChatCompletionMessage `json:"messages"`
 	// 是否流式
 	Stream bool `json:"stream,omitempty"`
+	// 是否启用推理
+	EnableThinking bool `json:"enable_thinking,omitempty"`
+	// 推理配置
+	Thinking *ChatCompletionThinking `json:"thinking,omitempty"`
 }
 
 type ChatCompletionMessage struct {
@@ -30,6 +34,13 @@ type ChatCompletionMessage struct {
 	Content string `json:"content"`
 	// 推理内容（仅响应）
 	ReasoningContent string `json:"reasoning_content"`
+}
+
+type ChatCompletionThinking struct {
+	// auto：自动思考模式
+	// enabled：开启思考模式
+	// disabled：关闭思考模式
+	Type string `json:"type"`
 }
 
 type ChatCompletionResp struct {
@@ -112,14 +123,20 @@ func hdrChatCompletions(c Ctx) error {
 		return err
 	}
 
+	ctx := c.Request().Context()
 	unix := time.Now().Unix()
 
-	hdr, err := browser.B().HandleChat(req.Model, buf.String())
+	options := browser.HandleChatOptions{}
+	if req.EnableThinking {
+		options.Thinking = "enabled"
+	} else if req.Thinking != nil {
+		options.Thinking = req.Thinking.Type
+	}
+
+	hdr, err := browser.B().HandleChat(ctx, req.Model, buf.String(), options)
 	if err != nil {
 		return err
 	}
-
-	ctx := c.Request().Context()
 
 	if !req.Stream {
 		content, reason := hdr.WaitFinish(ctx)
@@ -145,7 +162,6 @@ func hdrChatCompletions(c Ctx) error {
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("Transfer-Encoding", "chunked")
 
-	tag := ""
 	for {
 		select {
 		case <-ctx.Done():
@@ -156,15 +172,13 @@ func hdrChatCompletions(c Ctx) error {
 			}
 			data := "[DONE]"
 			if msg.FinishReason == "" {
-				if msg.ReasoningTag != "" {
-					tag = msg.ReasoningTag
-					continue
-				}
 				delta := &ChatCompletionMessage{Role: "assistant"}
-				if tag == "1" {
-					delta.ReasoningContent = msg.Content
-				} else {
+				if msg.Content != "" {
 					delta.Content = msg.Content
+				} else if msg.ReasoningContent != "" {
+					delta.ReasoningContent = msg.ReasoningContent
+				} else {
+					continue
 				}
 				data = json.MustMarshalToString(&ChatCompletionResp{
 					Id:      hdr.Id,
