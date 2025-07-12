@@ -3,6 +3,7 @@ package browser
 import (
 	"strings"
 	"sync/atomic"
+	"time"
 
 	"github.com/playwright-community/playwright-go"
 
@@ -62,6 +63,7 @@ func (h *chatDoubaoHandler) Input(prompt string) (err error) {
 	}()
 
 	for {
+		time.Sleep(100 * time.Millisecond)
 		if closed.Load() {
 			if err != nil {
 				return err

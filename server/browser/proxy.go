@@ -45,7 +45,10 @@ func startProxy(ctx context.Context, wg *sync.WaitGroup) {
 		}
 	}()
 
-	proxyCh = make(chan any, 4096)
+	proxyChs = map[string]chan any{}
+	for _, m := range Models() {
+		proxyChs[m] = make(chan any, 4096)
+	}
 
 	wg.Add(1)
 
@@ -84,7 +87,7 @@ func onRequest(req *http.Request, _ *goproxy.ProxyCtx) bool {
 	return ok
 }
 
-var proxyCh chan any
+var proxyChs map[string]chan any
 
 func doResponse(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Response {
 	if resp == nil {
@@ -105,7 +108,7 @@ func doResponse(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Response {
 		resp.Body = newTeeReader(resp.Body, pw)
 		go func() {
 			defer func() { _ = pr.Close() }()
-			proxyCh <- true
+			proxyChs[module.Name] <- true
 			logger.Debug().Msg("proxy listen sse start")
 			var rr io.Reader = pr
 			switch contentEncoding {
@@ -126,7 +129,7 @@ func doResponse(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Response {
 				}
 				logger.Debug().Msgf("proxy sse raw: %s", text)
 				select {
-				case proxyCh <- text:
+				case proxyChs[module.Name] <- text:
 					// normal
 				default:
 					logger.Warn().Msg("proxy sse channel full, drop all messages")
@@ -134,7 +137,7 @@ func doResponse(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Response {
 					for {
 						out := false
 						select {
-						case <-proxyCh:
+						case <-proxyChs[module.Name]:
 							count++
 						default:
 							out = true
@@ -147,7 +150,7 @@ func doResponse(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Response {
 				}
 			}
 			logger.Debug().Msg("proxy listen sse finish")
-			proxyCh <- false
+			proxyChs[module.Name] <- false
 		}()
 	}
 	return resp

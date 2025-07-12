@@ -26,6 +26,10 @@ type chatHandler interface {
 var chatHandlers = map[string]chatHandler{}
 
 func registerChatHandler(h chatHandler) {
+	if _, ok := chatHandlers[h.Name()]; ok {
+		logger.Fatal().Msgf("chat handler %s already exists", h.Name())
+	}
+	logger.Info().Msgf("register chat handler %s", h.Name())
 	chatHandlers[h.Name()] = h
 }
 
@@ -154,10 +158,11 @@ func (s *Browser) HandleChat(ctx context.Context, model, prompt string, options 
 	go func() {
 		flag := false
 		for {
+			time.Sleep(10 * time.Millisecond)
 			if done.Load() {
 				return
 			}
-			v := <-proxyCh
+			v := <-proxyChs[ch.Name()]
 			unix.Store(time.Now().Unix())
 			switch x := v.(type) {
 			case bool:
