@@ -2,6 +2,7 @@ package browser
 
 import (
 	"strings"
+	"sync/atomic"
 
 	"github.com/playwright-community/playwright-go"
 
@@ -34,20 +35,46 @@ func (h *chatDoubaoHandler) Setup(page playwright.Page, log logger.ZLogger) {
 }
 
 func (h *chatDoubaoHandler) Input(prompt string) (err error) {
-	h.log.Debug().Msg("wait for create conversation button")
-	locCreate := h.page.GetByTestId("create_conversation_button")
-	if err = locCreate.WaitFor(); err != nil {
-		locCreate = h.page.Locator(`button[class*="create-chat-"]`)
-		if err = locCreate.WaitFor(); err != nil {
-			h.log.Error().Err(err).Msg("wait for create conversation button error")
-			return err
+	closed := atomic.Bool{}
+
+	go func() {
+		h.log.Debug().Msg("wait for close sidebar button")
+		locSide := h.page.GetByTestId("siderbar_close_btn")
+		if err = locSide.WaitFor(); err == nil {
+			h.log.Debug().Msg("click close sidebar button")
+			if err = locSide.Click(); err == nil {
+				closed.Store(true)
+			}
+		}
+	}()
+
+	go func() {
+		h.log.Debug().Msg("wait for closed sidebar button")
+		locSide := h.page.GetByTestId("siderbar_closed_status_btn")
+		if err = locSide.WaitFor(); err == nil {
+			closed.Store(true)
+		}
+	}()
+
+	for {
+		if closed.Load() {
+			if err != nil {
+				return err
+			}
+			break
 		}
 	}
 
-	h.log.Debug().Msg("click create conversation button")
-	if err = locCreate.Click(); err != nil {
-		logger.Error().Err(err).Msg("click create conversation button error")
-		return err
+	h.log.Debug().Msg("wait for create conversation button")
+	locCreate := h.page.GetByRole("button", playwright.PageGetByRoleOptions{Name: "新对话"})
+	if err = locCreate.WaitFor(); err == nil {
+		if disabled, _ := locCreate.IsDisabled(); !disabled {
+			h.log.Debug().Msg("click create conversation button")
+			if err = locCreate.Click(); err != nil {
+				h.log.Error().Err(err).Msg("click create conversation button error")
+				return err
+			}
+		}
 	}
 
 	h.log.Debug().Msg("wait for chat main")
@@ -182,8 +209,9 @@ type doubaoEventData struct {
 }
 
 type doubaoEventContent struct {
-	Type int    `json:"type,omitempty"`
-	Text string `json:"text"`
+	Type  int    `json:"type,omitempty"`
+	Text  string `json:"text,omitempty"`
+	Think string `json:"think,omitempty"`
 }
 
 func (h *chatDoubaoHandler) Unmarshal(s string) *ChatMessage {
@@ -209,15 +237,23 @@ func (h *chatDoubaoHandler) Unmarshal(s string) *ChatMessage {
 		h.log.Error().Err(err).Msg("unmarshal doubao event content error")
 		return nil
 	}
-	if data.Message.ContentType == 10040 {
+	if data.Message.ContentType == 2003 {
+		tag := "1"
+		if content.Type == 6 {
+			tag = "2"
+		}
+		return &ChatMessage{Index: event.EventId, ReasoningTag: tag}
+	} else if data.Message.ContentType == 10040 {
 		tag := "1"
 		if data.Message.IsFinish {
 			tag = "2"
 		}
 		return &ChatMessage{Index: event.EventId, ReasoningTag: tag}
 	}
-	if content.Type == 0 && content.Text != "" {
+	if content.Text != "" {
 		return &ChatMessage{Index: event.EventId, Content: content.Text}
+	} else if content.Think != "" {
+		return &ChatMessage{Index: event.EventId, Content: content.Think}
 	}
 	return nil
 }
