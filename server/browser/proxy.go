@@ -66,26 +66,31 @@ func startProxy(ctx context.Context, wg *sync.WaitGroup) {
 }
 
 type mitmModule struct {
-	Name       string
-	TypePrefix string
-	PathSuffix string
+	Name         string
+	TypePrefix   string
+	PathContains string
 }
 
 var mitmHosts = map[string]*mitmModule{
 	"www.doubao.com:443": {
-		Name:       "doubao",
-		TypePrefix: "text/event-stream",
-		PathSuffix: "/chat/completion",
+		Name:         "doubao",
+		TypePrefix:   "text/event-stream",
+		PathContains: "/chat/completion",
 	},
 	"chat.qwen.ai:443": {
-		Name:       "qwen",
-		TypePrefix: "text/event-stream",
-		PathSuffix: "/chat/completions",
+		Name:         "qwen",
+		TypePrefix:   "text/event-stream",
+		PathContains: "/chat/completions",
+	},
+	"yuanbao.tencent.com:443": {
+		Name:         "yuanbao",
+		TypePrefix:   "text/event-stream",
+		PathContains: "/api/chat/",
 	},
 	"alkalimakersuite-pa.clients6.google.com:443": {
-		Name:       "google",
-		TypePrefix: "application/json+protobuf",
-		PathSuffix: "GenerateContent",
+		Name:         "google",
+		TypePrefix:   "application/json+protobuf",
+		PathContains: "GenerateContent",
 	},
 }
 
@@ -116,7 +121,7 @@ func doResponse(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Response {
 	}
 	contentType := strings.ToLower(resp.Header.Get("Content-Type"))
 	contentEncoding := strings.ToLower(resp.Header.Get("Content-Encoding"))
-	if strings.HasPrefix(contentType, module.TypePrefix) && strings.HasSuffix(ctx.Req.URL.Path, module.PathSuffix) {
+	if strings.HasPrefix(contentType, module.TypePrefix) && strings.Contains(ctx.Req.URL.Path, module.PathContains) {
 		logger.Debug().Str("host", ctx.Req.URL.Host).Str("path", ctx.Req.URL.Path).Msg("proxy response detected")
 		pr, pw := io.Pipe()
 		resp.Body = newTeeReader(resp.Body, pw)

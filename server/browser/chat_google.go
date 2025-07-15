@@ -41,7 +41,6 @@ func (h *chatGoogleHandler) Input(prompt string) (err error) {
 		h.log.Error().Err(err).Msg("wait for new chat link error")
 		return err
 	}
-
 	h.log.Debug().Msg("click new chat link")
 	if err = locNew.Click(); err != nil {
 		h.log.Error().Err(err).Msg("click new chat link error")
