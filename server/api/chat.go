@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"fmt"
+	"strings"
 	"text/template"
 	"time"
 
@@ -133,7 +134,7 @@ func hdrChatCompletions(c Ctx) error {
 		options.Thinking = req.Thinking.Type
 	}
 
-	hdr, err := browser.B().HandleChat(ctx, req.Model, buf.String(), options)
+	hdr, err := browser.B().HandleChat(ctx, req.Model, strings.TrimSpace(buf.String()), options)
 	if err != nil {
 		return err
 	}

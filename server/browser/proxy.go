@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"compress/gzip"
 	"context"
-	"crypto/tls"
 	stdjson "encoding/json"
 	"errors"
 	"io"
@@ -16,7 +15,6 @@ import (
 
 	"github.com/andybalholm/brotli"
 	"github.com/elazarl/goproxy"
-	lru "github.com/hashicorp/golang-lru/v2"
 
 	"github.com/starudream/aichat-proxy/server/config"
 	"github.com/starudream/aichat-proxy/server/internal/conv"
@@ -32,7 +30,7 @@ func startProxy(ctx context.Context, wg *sync.WaitGroup) {
 	proxy.CertStore = newLRUStorage()
 	proxy.KeepDestinationHeaders = true
 	proxy.KeepHeader = true
-	proxy.OnRequest(goproxy.ReqConditionFunc(onRequest)).HandleConnectFunc(goproxy.AlwaysMitm)
+	proxy.OnRequest(goproxy.ReqConditionFunc(onRequest)).HandleConnectFunc(handleConnect)
 	proxy.OnResponse().DoFunc(doResponse)
 
 	srv := &http.Server{Addr: config.ProxyAddress, Handler: proxy}
@@ -97,6 +95,13 @@ func onRequest(req *http.Request, _ *goproxy.ProxyCtx) bool {
 		logger.Debug().Str("host", req.URL.Host).Msg("proxy request detected")
 	}
 	return ok
+}
+
+func handleConnect(host string, _ *goproxy.ProxyCtx) (*goproxy.ConnectAction, string) {
+	return &goproxy.ConnectAction{
+		Action:    goproxy.ConnectMitm,
+		TLSConfig: goproxy.TLSConfigFromCA(&goproxy.GoproxyCa),
+	}, host
 }
 
 var proxyChs map[string]chan any
@@ -235,30 +240,4 @@ func (t *teeReader) Close() error {
 		return pe
 	}
 	return be
-}
-
-type lruStorage struct {
-	certs *lru.Cache[string, *tls.Certificate]
-}
-
-func newLRUStorage() goproxy.CertStorage {
-	certs, _ := lru.NewWithEvict[string, *tls.Certificate](4096, onLRUEvicted)
-	return &lruStorage{certs: certs}
-}
-
-func onLRUEvicted(hostname string, _ *tls.Certificate) {
-	logger.Debug().Str("hostname", hostname).Msg("cert storage evicted")
-}
-
-func (s *lruStorage) Fetch(hostname string, gen func() (*tls.Certificate, error)) (cert *tls.Certificate, err error) {
-	var ok bool
-	cert, ok = s.certs.Get(hostname)
-	if !ok {
-		cert, err = gen()
-		if err != nil {
-			return
-		}
-		s.certs.Add(hostname, cert)
-	}
-	return
 }
