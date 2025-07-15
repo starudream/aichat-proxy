@@ -99,7 +99,7 @@ func (s *Browser) HandleChat(ctx context.Context, model, prompt string, options 
 
 	defer func() {
 		if err != nil {
-			if s.ec.Add(1) >= 3 {
+			if s.ec.Add(1) >= 2 {
 				s.ec.Store(0)
 				s.resetPages(ch.URL())
 			}
@@ -149,7 +149,7 @@ func (s *Browser) HandleChat(ctx context.Context, model, prompt string, options 
 	ch.Setup(options)
 
 	if err = ch.Input(prompt); err != nil {
-		return nil, err
+		return hdr, err
 	}
 
 	unix := atomic.Int64{}
@@ -186,7 +186,7 @@ func (s *Browser) HandleChat(ctx context.Context, model, prompt string, options 
 	}()
 
 	if err = ch.Send(); err != nil {
-		return nil, err
+		return hdr, err
 	}
 
 	go func() {

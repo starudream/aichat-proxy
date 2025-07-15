@@ -14,7 +14,7 @@ on:
       camoufox-version:
         description: camoufox docker image version
         required: true
-        default: develop
+        default: "20250712"
         type: string
 
 jobs:

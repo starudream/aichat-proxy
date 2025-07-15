@@ -3,12 +3,13 @@ services:
     # build:
     #   context: camoufox
     #   dockerfile: Dockerfile
-    image: starudream/aichat-proxy-camoufox:develop
+    image: starudream/aichat-proxy-camoufox:20250712
     platform: linux/amd64
     hostname: camoufox
     volumes:
       - "./.env:/app/.env:ro"
       - "./bin:/app/bin"
+      - "./data/certs:/app/certs"
       - "./data/userdata:/app/userdata"
     ports:
       - "9540:9540" # aichat-proxy api

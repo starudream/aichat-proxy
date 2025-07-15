@@ -16,4 +16,5 @@ const (
 	UserdataPath          = AppRootPath + "/userdata"
 	Userdata0Path         = UserdataPath + "/user0"
 	DownloadsPath         = AppRootPath + "/downloads"
+	CertsPath             = AppRootPath + "/certs"
 )

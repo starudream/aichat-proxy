@@ -114,7 +114,7 @@ func mdRecover() echo.MiddlewareFunc {
 		DisablePrintStack: true,
 		LogLevel:          4,
 		LogErrorFunc: func(c echo.Context, err error, _ []byte) error {
-			logger.Ctx(c.Request().Context()).Err(err).Msgf("recover from panic:\n%s", osx.Stack())
+			logger.Ctx(c.Request().Context()).Err(err).Msgf("recover from panic:\n%s", osx.Stack(3))
 			return err
 		},
 	})

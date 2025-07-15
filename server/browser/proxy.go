@@ -2,8 +2,10 @@ package browser
 
 import (
 	"bufio"
+	"compress/gzip"
 	"context"
 	"crypto/tls"
+	stdjson "encoding/json"
 	"errors"
 	"io"
 	"net"
@@ -17,6 +19,8 @@ import (
 	lru "github.com/hashicorp/golang-lru/v2"
 
 	"github.com/starudream/aichat-proxy/server/config"
+	"github.com/starudream/aichat-proxy/server/internal/conv"
+	"github.com/starudream/aichat-proxy/server/internal/json"
 	"github.com/starudream/aichat-proxy/server/internal/writer"
 	"github.com/starudream/aichat-proxy/server/logger"
 )
@@ -64,18 +68,26 @@ func startProxy(ctx context.Context, wg *sync.WaitGroup) {
 }
 
 type mitmModule struct {
-	Name   string
-	Suffix string
+	Name       string
+	TypePrefix string
+	PathSuffix string
 }
 
 var mitmHosts = map[string]*mitmModule{
 	"www.doubao.com:443": {
-		Name:   "doubao",
-		Suffix: "/chat/completion",
+		Name:       "doubao",
+		TypePrefix: "text/event-stream",
+		PathSuffix: "/chat/completion",
 	},
 	"chat.qwen.ai:443": {
-		Name:   "qwen",
-		Suffix: "/chat/completions",
+		Name:       "qwen",
+		TypePrefix: "text/event-stream",
+		PathSuffix: "/chat/completions",
+	},
+	"alkalimakersuite-pa.clients6.google.com:443": {
+		Name:       "google",
+		TypePrefix: "application/json+protobuf",
+		PathSuffix: "GenerateContent",
 	},
 }
 
@@ -99,61 +111,109 @@ func doResponse(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Response {
 	}
 	contentType := strings.ToLower(resp.Header.Get("Content-Type"))
 	contentEncoding := strings.ToLower(resp.Header.Get("Content-Encoding"))
-	if strings.HasPrefix(contentType, "text/event-stream") {
-		if !strings.HasSuffix(ctx.Req.URL.Path, module.Suffix) {
-			return resp
-		}
+	if strings.HasPrefix(contentType, module.TypePrefix) && strings.HasSuffix(ctx.Req.URL.Path, module.PathSuffix) {
 		logger.Debug().Str("host", ctx.Req.URL.Host).Str("path", ctx.Req.URL.Path).Msg("proxy response detected")
 		pr, pw := io.Pipe()
 		resp.Body = newTeeReader(resp.Body, pw)
 		go func() {
 			defer func() { _ = pr.Close() }()
 			proxyChs[module.Name] <- true
-			logger.Debug().Msg("proxy listen sse start")
+			logger.Debug().Msg("proxy handle stream start")
 			var rr io.Reader = pr
 			switch contentEncoding {
+			case "gzip":
+				rr, _ = gzip.NewReader(pr)
 			case "br":
 				rr = brotli.NewReader(pr)
 			}
-			for rd := bufio.NewReader(rr); ; {
-				text, err := rd.ReadString('\n')
-				if err != nil {
-					if !errors.Is(err, io.EOF) {
-						logger.Error().Err(err).Msg("proxy listen sse error")
-					}
-					break
-				}
-				text = strings.TrimRight(text, "\r\n")
-				if text == "" {
-					continue
-				}
-				logger.Debug().Msgf("proxy sse raw: %s", text)
-				select {
-				case proxyChs[module.Name] <- text:
-					// normal
-				default:
-					logger.Warn().Msg("proxy sse channel full, drop all messages")
-					count := 0
-					for {
-						out := false
-						select {
-						case <-proxyChs[module.Name]:
-							count++
-						default:
-							out = true
-						}
-						if out {
-							break
-						}
-					}
-					logger.Info().Int("count", count).Msg("proxy sse channel clear")
-				}
+			if module.Name == "google" {
+				handleStreamGoogle(module, rr)
+			} else {
+				handleStreamLine(module, rr)
 			}
-			logger.Debug().Msg("proxy listen sse finish")
+			logger.Debug().Msg("proxy handle stream finish")
 			proxyChs[module.Name] <- false
 		}()
 	}
 	return resp
+}
+
+func handleStreamGoogle(module *mitmModule, rr io.Reader) {
+	dec := stdjson.NewDecoder(rr)
+	for i := 1; i <= 2; i++ {
+		delim, err := dec.Token()
+		if err != nil {
+			logger.Error().Err(err).Msgf("proxy read delim %d error", i)
+			return
+		}
+		if r, ok := delim.(stdjson.Delim); !ok || r != '[' {
+			logger.Error().Msgf("proxy read delim %d want [, got: %s", i, delim)
+			return
+		}
+	}
+	for dec.More() {
+		var v []any
+		err := dec.Decode(&v)
+		if err != nil {
+			if !errors.Is(err, io.EOF) {
+				logger.Error().Err(err).Msg("proxy decode stream error")
+			}
+			return
+		}
+		text := json.MustMarshalToString(v)
+		logger.Debug().Msgf("proxy stream raw: %s", text)
+		pushStreamEvent(module, text)
+	}
+	suffix, err := io.ReadAll(dec.Buffered())
+	if err != nil {
+		logger.Error().Err(err).Msg("proxy read suffix error")
+		return
+	}
+	if conv.BytesToString(suffix) != "]]" {
+		logger.Error().Msgf("proxy read suffix want ]], got: %s", suffix)
+		return
+	}
+}
+
+func handleStreamLine(module *mitmModule, rr io.Reader) {
+	for rd := bufio.NewReader(rr); ; {
+		text, err := rd.ReadString('\n')
+		if err != nil {
+			if !errors.Is(err, io.EOF) {
+				logger.Error().Err(err).Msg("proxy read stream error")
+			}
+			return
+		}
+		text = strings.TrimRight(text, "\r\n")
+		if text == "" {
+			continue
+		}
+		logger.Debug().Msgf("proxy stream raw: %s", text)
+		pushStreamEvent(module, text)
+	}
+}
+
+func pushStreamEvent(module *mitmModule, text string) {
+	select {
+	case proxyChs[module.Name] <- text:
+		// normal
+	default:
+		logger.Warn().Msg("proxy stream channel full, drop all messages")
+		count := 0
+		for {
+			out := false
+			select {
+			case <-proxyChs[module.Name]:
+				count++
+			default:
+				out = true
+			}
+			if out {
+				break
+			}
+		}
+		logger.Info().Int("count", count).Msg("proxy stream channel clear")
+	}
 }
 
 type teeReader struct {
