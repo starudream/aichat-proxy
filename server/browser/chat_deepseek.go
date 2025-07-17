@@ -1,6 +1,7 @@
 package browser
 
 import (
+	"fmt"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -60,13 +61,20 @@ func (h *chatDeepseekHandler) Input(prompt string) (err error) {
 		}
 	}()
 
+	timeout := time.After(10 * time.Second)
+loop:
 	for {
-		time.Sleep(100 * time.Millisecond)
-		if closed.Load() {
-			if err != nil {
-				return err
+		select {
+		case <-timeout:
+			return fmt.Errorf("wait for close sidebar button timeout")
+		default:
+			time.Sleep(100 * time.Millisecond)
+			if closed.Load() {
+				if err != nil {
+					return err
+				}
+				break loop
 			}
-			break
 		}
 	}
 
