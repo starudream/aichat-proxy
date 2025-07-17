@@ -87,6 +87,11 @@ var mitmHosts = map[string]*mitmModule{
 		TypePrefix:   "text/event-stream",
 		PathContains: "/api/chat/",
 	},
+	"chat.deepseek.com:443": {
+		Name:         "deepseek",
+		TypePrefix:   "text/event-stream",
+		PathContains: "/chat/completion",
+	},
 	"alkalimakersuite-pa.clients6.google.com:443": {
 		Name:         "google",
 		TypePrefix:   "application/json+protobuf",
