@@ -9,6 +9,7 @@ services:
     volumes:
       - "./.env:/app/.env:ro"
       - "./bin:/app/bin"
+      - "./data/certs:/app/certs"
       - "./data/userdata:/app/userdata"
     ports:
       - "9540:9540" # aichat-proxy api

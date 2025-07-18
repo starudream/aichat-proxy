@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"strings"
 	"sync"
-	"sync/atomic"
 
 	"github.com/playwright-community/playwright-go"
 
@@ -28,7 +27,6 @@ type Browser struct {
 	pw *playwright.Playwright
 	bc playwright.BrowserContext
 
-	ec atomic.Uint32
 	mu sync.Mutex
 }
 

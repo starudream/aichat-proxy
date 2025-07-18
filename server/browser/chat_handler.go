@@ -99,10 +99,7 @@ func (s *Browser) HandleChat(ctx context.Context, model, prompt string, options 
 
 	defer func() {
 		if err != nil {
-			if s.ec.Add(1) >= 2 {
-				s.ec.Store(0)
-				s.resetPages(ch.URL())
-			}
+			s.resetPages(ch.URL())
 		}
 	}()
 
@@ -128,8 +125,11 @@ func (s *Browser) HandleChat(ctx context.Context, model, prompt string, options 
 			close(hdr.Ch)
 			s.mu.Unlock()
 			log.Debug().Msg("release lock")
+			_, _ = page.Evaluate(`window.__aichat_proxy_active_time=Date.now();window.__aichat_proxy_idle_timer=setInterval(()=>{const t=window.__aichat_proxy_active_time;if(t&&Date.now()-t>5000){window.location.href="about:blank"}},1000);`)
 		}
 	}
+
+	_, _ = page.Evaluate(`if(window.__aichat_proxy_idle_timer){clearInterval(window.__aichat_proxy_idle_timer)}`)
 
 	go func() {
 		<-ctx.Done()

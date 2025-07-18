@@ -27,7 +27,6 @@ func startProxy(ctx context.Context, wg *sync.WaitGroup) {
 	proxy := goproxy.NewProxyHttpServer()
 	proxy.Verbose = config.DEBUG("PROXY")
 	proxy.Logger = writer.NewPrefixWriter("proxy")
-	proxy.CertStore = newLRUStorage()
 	proxy.KeepDestinationHeaders = true
 	proxy.KeepHeader = true
 	proxy.OnRequest(goproxy.ReqConditionFunc(onRequest)).HandleConnectFunc(handleConnect)
@@ -108,10 +107,7 @@ func onRequest(req *http.Request, _ *goproxy.ProxyCtx) bool {
 }
 
 func handleConnect(host string, _ *goproxy.ProxyCtx) (*goproxy.ConnectAction, string) {
-	return &goproxy.ConnectAction{
-		Action:    goproxy.ConnectMitm,
-		TLSConfig: goproxy.TLSConfigFromCA(&goproxy.GoproxyCa),
-	}, host
+	return &goproxy.ConnectAction{Action: goproxy.ConnectMitm, TLSConfig: newTLSConfig}, host
 }
 
 var proxyChs map[string]chan any
