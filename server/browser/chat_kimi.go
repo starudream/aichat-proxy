@@ -152,10 +152,12 @@ func (h *chatKimiHandler) Unmarshal(s string) *ChatMessage {
 		return nil
 	}
 	switch event.Event {
-	case "error":
-		return &ChatMessage{Content: event.Error.Message}
+	case "k1":
+		return &ChatMessage{ReasoningContent: event.Text}
 	case "cmpl":
 		return &ChatMessage{Content: event.Text}
+	case "error":
+		return &ChatMessage{Content: event.Error.Message}
 	}
 	return nil
 }
