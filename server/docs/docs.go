@@ -136,6 +136,9 @@ const docTemplate = `{
         },
         "api.ChatCompletionMessage": {
             "type": "object",
+            "required": [
+                "role"
+            ],
             "properties": {
                 "content": {
                     "description": "内容",
@@ -153,7 +156,14 @@ const docTemplate = `{
         },
         "api.ChatCompletionReq": {
             "type": "object",
+            "required": [
+                "model"
+            ],
             "properties": {
+                "enable_thinking": {
+                    "description": "是否启用推理",
+                    "type": "boolean"
+                },
                 "messages": {
                     "description": "消息列表",
                     "type": "array",
@@ -168,6 +178,14 @@ const docTemplate = `{
                 "stream": {
                     "description": "是否流式",
                     "type": "boolean"
+                },
+                "thinking": {
+                    "description": "推理配置",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/api.ChatCompletionThinking"
+                        }
+                    ]
                 }
             }
         },
@@ -204,6 +222,15 @@ const docTemplate = `{
                             "$ref": "#/definitions/api.ChatCompletionUsage"
                         }
                     ]
+                }
+            }
+        },
+        "api.ChatCompletionThinking": {
+            "type": "object",
+            "properties": {
+                "type": {
+                    "description": "auto：自动思考模式\nenabled：开启思考模式\ndisabled：关闭思考模式",
+                    "type": "string"
                 }
             }
         },

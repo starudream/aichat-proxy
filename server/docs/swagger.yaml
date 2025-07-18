@@ -29,9 +29,14 @@ definitions:
       role:
         description: 角色
         type: string
+    required:
+    - role
     type: object
   api.ChatCompletionReq:
     properties:
+      enable_thinking:
+        description: 是否启用推理
+        type: boolean
       messages:
         description: 消息列表
         items:
@@ -43,6 +48,12 @@ definitions:
       stream:
         description: 是否流式
         type: boolean
+      thinking:
+        allOf:
+        - $ref: '#/definitions/api.ChatCompletionThinking'
+        description: 推理配置
+    required:
+    - model
     type: object
   api.ChatCompletionResp:
     properties:
@@ -67,6 +78,15 @@ definitions:
         allOf:
         - $ref: '#/definitions/api.ChatCompletionUsage'
         description: 用量
+    type: object
+  api.ChatCompletionThinking:
+    properties:
+      type:
+        description: |-
+          auto：自动思考模式
+          enabled：开启思考模式
+          disabled：关闭思考模式
+        type: string
     type: object
   api.ChatCompletionUsage:
     properties:

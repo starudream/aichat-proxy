@@ -57,7 +57,6 @@ func (h *ChatHandler) WaitFinish(ctx context.Context) (string, string) {
 		next := false
 		select {
 		case <-ctx.Done():
-			break
 		case msg, ok := <-h.Ch:
 			if !ok {
 				break

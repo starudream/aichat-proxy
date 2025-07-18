@@ -27,7 +27,7 @@ func (h *chatYuanbaoHandler) Name() string {
 }
 
 func (h *chatYuanbaoHandler) URL() string {
-	return "https://yuanbao.tencent.com/"
+	return "https://yuanbao.tencent.com"
 }
 
 func (h *chatYuanbaoHandler) Setup(options HandleChatOptions) {

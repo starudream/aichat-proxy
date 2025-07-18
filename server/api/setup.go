@@ -104,7 +104,7 @@ func mdRequestId() echo.MiddlewareFunc {
 		TargetHeader: echo.HeaderXRequestID,
 		RequestIDHandler: func(c echo.Context, tid string) {
 			// c.Set("requestId", tid)
-			c.Request().WithContext(logger.With().Str("requestId", tid).Logger().WithContext(c.Request().Context()))
+			c.SetRequest(c.Request().WithContext(logger.With().Str("requestId", tid).Logger().WithContext(c.Request().Context())))
 		},
 	})
 }

@@ -33,7 +33,7 @@ func ErrorHandler(app *echo.Echo) func(err error, c echo.Context) {
 
 		var ee *errx.Error
 		if !errors.As(err, &ee) {
-			ee = errx.Newf(he.Code, cast.To[string](he.Message))
+			ee = errx.Newf(he.Code, "%s", cast.To[string](he.Message))
 		}
 
 		if c.Request().Method == http.MethodHead {

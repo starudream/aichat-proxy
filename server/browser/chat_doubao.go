@@ -32,7 +32,7 @@ func (h *chatDoubaoHandler) Name() string {
 }
 
 func (h *chatDoubaoHandler) URL() string {
-	return "https://www.doubao.com/chat/"
+	return "https://www.doubao.com/chat"
 }
 
 func (h *chatDoubaoHandler) Setup(options HandleChatOptions) {
@@ -254,6 +254,7 @@ func (h *chatDoubaoHandler) Unmarshal(s string) *ChatMessage {
 		h.log.Error().Err(err).Msg("unmarshal doubao event content error")
 		return nil
 	}
+	// nolint:staticcheck
 	if data.Message.ContentType == 2003 {
 		if content.Type == 5 {
 			h.reasoning.Store(true)

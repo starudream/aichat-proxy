@@ -30,7 +30,7 @@ func (h *chatQwenHandler) Name() string {
 }
 
 func (h *chatQwenHandler) URL() string {
-	return "https://chat.qwen.ai/"
+	return "https://chat.qwen.ai"
 }
 
 func (h *chatQwenHandler) Setup(options HandleChatOptions) {

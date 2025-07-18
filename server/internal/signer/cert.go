@@ -36,7 +36,9 @@ var (
 )
 
 func CreateCert(current, parent *x509.Certificate, parentKey *rsa.PrivateKey) (*tls.Certificate, error) {
-	defer func(start time.Time) { logger.Debug().Dur("took", time.Since(start)).Msgf("signer: create cert for %s", current.Subject.CommonName) }(time.Now())
+	defer func(start time.Time) {
+		logger.Debug().Dur("took", time.Since(start)).Msgf("create cert for %s", current.Subject.CommonName)
+	}(time.Now())
 
 	key, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
@@ -103,7 +105,7 @@ func CreateDV(ca *tls.Certificate, names ...string) (*tls.Certificate, error) {
 }
 
 func SaveCert(cert *tls.Certificate, path string) error {
-	defer func() { logger.Debug().Msgf("signer: save cert pem to %s", path) }()
+	defer func() { logger.Debug().Msgf("save cert pem to %s", path) }()
 	blocks := make([][]byte, len(cert.Certificate)+1)
 	for i, crt := range cert.Certificate {
 		blocks[i] = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: crt})
