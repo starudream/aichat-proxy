@@ -1,12 +1,10 @@
 package browser
 
 import (
-	"fmt"
 	"strings"
-	"sync/atomic"
-	"time"
 
 	"github.com/playwright-community/playwright-go"
+	"github.com/spf13/cast"
 
 	"github.com/starudream/aichat-proxy/server/internal/json"
 	"github.com/starudream/aichat-proxy/server/logger"
@@ -40,46 +38,8 @@ func (h *chatBaiduHandler) Setup(options HandleChatOptions) {
 }
 
 func (h *chatBaiduHandler) Input(prompt string) (err error) {
-	closed := atomic.Bool{}
-
-	go func() {
-		h.log.Debug().Msg("wait for close sidebar button")
-		locSide := h.page.Locator(`div[class^="hideSvgWrapper"]:has(svg[class^="isOpen"])`)
-		if err = locSide.WaitFor(); err == nil {
-			h.log.Debug().Msg("click close sidebar button")
-			if err = locSide.Click(); err == nil {
-				closed.Store(true)
-			}
-		}
-	}()
-
-	go func() {
-		h.log.Debug().Msg("wait for closed sidebar button")
-		locSide := h.page.Locator(`div[class^="hoverSvg"]:has(svg[class^="isOpen"])`)
-		if err = locSide.WaitFor(); err == nil {
-			closed.Store(true)
-		}
-	}()
-
-	timeout := time.After(10 * time.Second)
-loop:
-	for {
-		select {
-		case <-timeout:
-			return fmt.Errorf("wait for close sidebar button timeout")
-		default:
-			time.Sleep(100 * time.Millisecond)
-			if closed.Load() {
-				if err != nil {
-					return err
-				}
-				break loop
-			}
-		}
-	}
-
 	h.log.Debug().Msg("wait for create chat button")
-	locCreate := h.page.Locator(`div[class^="hoverSvg"]:has(svg[class^="session"])`)
+	locCreate := h.page.Locator(`div[class^="newSession"]`, playwright.PageLocatorOptions{HasText: "新对话"})
 	if err = locCreate.WaitFor(); err != nil {
 		h.log.Error().Err(err).Msg("wait for create chat button error")
 		return err
@@ -102,9 +62,18 @@ loop:
 	if err = locThink.WaitFor(); err != nil {
 		h.log.Error().Err(err).Msg("wait for deep think button error")
 	} else {
-		h.log.Debug().Msg("click deep think button")
-		if err = locThink.Click(); err != nil {
-			h.log.Error().Err(err).Msg("click deep think button error")
+		active := false
+		attrs, _ := locThink.GetAttribute("class")
+		for _, attr := range strings.Split(attrs, " ") {
+			if strings.HasPrefix(attr, "active") {
+				active = true
+			}
+		}
+		if !active {
+			h.log.Debug().Msg("click deep think button")
+			if err = locThink.Click(); err != nil {
+				h.log.Error().Err(err).Msg("click deep think button error")
+			}
 		}
 	}
 
@@ -143,14 +112,15 @@ func (h *chatBaiduHandler) Send() error {
 
 type baiduEvent struct {
 	// thought
-	ThoughtIndex int    `json:"thought_index"`
-	Thoughts     string `json:"thoughts"`
-	IsEnd        int    `json:"is_end"`
+	ThoughtIndex *int   `json:"thought_index,omitempty"`
+	StepId       string `json:"step_id,omitempty"`
+	Thoughts     string `json:"thoughts,omitempty"`
+	// IsEnd        int    `json:"is_end"`
 	// content
 	Data struct {
-		Content string `json:"content"`
-		IsEnd   int    `json:"is_end"`
-	} `json:"data"`
+		Content string `json:"content,omitempty"`
+		// IsEnd   int    `json:"is_end"`
+	} `json:"data,omitempty"`
 }
 
 func (h *chatBaiduHandler) Unmarshal(s string) *ChatMessage {
@@ -162,7 +132,10 @@ func (h *chatBaiduHandler) Unmarshal(s string) *ChatMessage {
 	if err != nil {
 		return nil
 	}
-	if event.ThoughtIndex > 0 {
+	if event.ThoughtIndex != nil {
+		if *event.ThoughtIndex == 0 && cast.To[int](strings.TrimPrefix(event.StepId, "step-")) > 1 {
+			event.Thoughts = "\n\n" + event.Thoughts
+		}
 		return &ChatMessage{ReasoningContent: event.Thoughts}
 	} else if event.Data.Content != "" {
 		return &ChatMessage{Content: event.Data.Content}
