@@ -34,7 +34,7 @@ type ChatCompletionMessage struct {
 	// 内容
 	Content string `json:"content"`
 	// 推理内容（仅响应）
-	ReasoningContent string `json:"reasoning_content"`
+	ReasoningContent string `json:"reasoning_content,omitempty"`
 }
 
 type ChatCompletionThinking struct {

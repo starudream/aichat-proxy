@@ -19,6 +19,7 @@ Status: **WIP**
 
 ## Support Chatbot
 
+- [x] [Baidu](https://yiyan.baidu.com)
 - [x] [Deepseek](https://chat.deepseek.com)
 - [x] [Doubao](https://www.doubao.com/chat)
 - [x] [Google](https://aistudio.google.com)

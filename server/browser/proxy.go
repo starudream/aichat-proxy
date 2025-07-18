@@ -96,6 +96,11 @@ var mitmHosts = map[string]*mitmModule{
 		TypePrefix:   "text/event-stream",
 		PathContains: "/completion/stream",
 	},
+	"yiyan.baidu.com:443": {
+		Name:         "baidu",
+		TypePrefix:   "text/event-stream",
+		PathContains: "/chat/conversation/",
+	},
 	"alkalimakersuite-pa.clients6.google.com:443": {
 		Name:         "google",
 		TypePrefix:   "application/json+protobuf",
