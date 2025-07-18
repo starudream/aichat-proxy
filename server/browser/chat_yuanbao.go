@@ -57,22 +57,15 @@ func (h *chatYuanbaoHandler) Input(prompt string) (err error) {
 	}
 
 	h.log.Debug().Msg("wait for chat editor")
-	locEditor := h.locChat.Locator("div.ql-editor p")
+	locEditor := h.locChat.Locator("div.ql-editor")
 	if err = locEditor.WaitFor(); err != nil {
 		h.log.Error().Err(err).Msg("wait for chat editor error")
 		return err
 	}
 
-	ss := strings.Split(prompt, "\n")
-	for i := range ss {
-		ss[i] = "<p>" + ss[i] + "</p>"
-	}
-	prompt = strings.Join(ss, "")
-
 	h.log.Debug().Msg("fill prompt to chat editor")
-	_, err = locEditor.Evaluate("(e, s) => e.innerHTML = s", prompt)
-	if err != nil {
-		h.log.Error().Err(err).Msg("fill prompt to chat editor error")
+	if err = locEditor.Fill(prompt); err != nil {
+		logger.Error().Err(err).Msg("fill prompt to chat editor error")
 		return err
 	}
 
