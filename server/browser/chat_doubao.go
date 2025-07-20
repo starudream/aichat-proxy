@@ -24,6 +24,8 @@ type chatDoubaoHandler struct {
 
 	locChat playwright.Locator
 
+	lastType  atomic.Int64
+	newline   atomic.Bool
 	reasoning atomic.Bool
 }
 
@@ -254,6 +256,10 @@ func (h *chatDoubaoHandler) Unmarshal(s string) *ChatMessage {
 		h.log.Error().Err(err).Msg("unmarshal doubao event content error")
 		return nil
 	}
+	if t := int64(data.Message.ContentType); h.lastType.Load() != t {
+		h.lastType.Store(t)
+		h.newline.Store(true)
+	}
 	// nolint:staticcheck
 	if data.Message.ContentType == 2003 {
 		if content.Type == 5 {
@@ -273,6 +279,9 @@ func (h *chatDoubaoHandler) Unmarshal(s string) *ChatMessage {
 	text := content.Text
 	if content.Think != "" {
 		text = content.Think
+	}
+	if h.newline.CompareAndSwap(true, false) {
+		text = "\n\n" + text
 	}
 	if h.reasoning.Load() {
 		return &ChatMessage{Index: event.EventId, ReasoningContent: text}
