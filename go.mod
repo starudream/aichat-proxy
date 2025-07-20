@@ -14,6 +14,7 @@ require (
 	github.com/knadh/koanf/providers/file v1.2.0
 	github.com/knadh/koanf/v2 v2.2.2
 	github.com/labstack/echo/v4 v4.13.4
+	github.com/pkoukk/tiktoken-go v0.1.7
 	github.com/playwright-community/playwright-go v0.5200.0
 	github.com/rotisserie/eris v0.5.4
 	github.com/rs/zerolog v1.34.0
@@ -29,6 +30,7 @@ require (
 	github.com/bytedance/sonic/loader v0.3.0 // indirect
 	github.com/cloudwego/base64x v0.1.5 // indirect
 	github.com/deckarep/golang-set/v2 v2.8.0 // indirect
+	github.com/dlclark/regexp2 v1.11.5 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.9 // indirect
 	github.com/ghodss/yaml v1.0.0 // indirect

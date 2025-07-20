@@ -13,6 +13,7 @@ import (
 	"github.com/starudream/aichat-proxy/server/internal/errx"
 	"github.com/starudream/aichat-proxy/server/internal/json"
 	"github.com/starudream/aichat-proxy/server/logger"
+	"github.com/starudream/aichat-proxy/server/tiktoken"
 )
 
 type ChatCompletionReq struct {
@@ -77,6 +78,13 @@ type ChatCompletionUsage struct {
 	PromptTokens int `json:"prompt_tokens"`
 	// 输出 tokens
 	CompletionTokens int `json:"completion_tokens"`
+	// 输出 tokens
+	CompletionTokensDetails *ChatCompletionTokens `json:"completion_tokens_details,omitempty"`
+}
+
+type ChatCompletionTokens struct {
+	// 思维链 tokens
+	ReasoningTokens int `json:"reasoning_tokens,omitempty"`
 }
 
 var chatPrompt = template.Must(template.New("").Parse(`
@@ -123,6 +131,8 @@ func hdrChatCompletions(c Ctx) error {
 	if err := chatPrompt.Execute(buf, req); err != nil {
 		return err
 	}
+	prompt := strings.TrimSpace(buf.String())
+	promptN := tiktoken.NumTokens(prompt)
 
 	ctx := c.Request().Context()
 	unix := time.Now().Unix()
@@ -134,13 +144,14 @@ func hdrChatCompletions(c Ctx) error {
 		options.Thinking = req.Thinking.Type
 	}
 
-	hdr, err := browser.B().HandleChat(ctx, req.Model, strings.TrimSpace(buf.String()), options)
+	hdr, err := browser.B().HandleChat(ctx, req.Model, prompt, options)
 	if err != nil {
 		return err
 	}
 
 	if !req.Stream {
 		content, reason := hdr.WaitFinish(ctx)
+		contentN, reasonN := tiktoken.NumTokens(content), tiktoken.NumTokens(reason)
 		return c.JSON(200, &ChatCompletionResp{
 			Id:      hdr.Id,
 			Object:  "chat.completion",
@@ -154,6 +165,14 @@ func hdrChatCompletions(c Ctx) error {
 				},
 				FinishReason: "stop",
 			}},
+			Usage: &ChatCompletionUsage{
+				TotalTokens:      promptN + contentN + reasonN,
+				PromptTokens:     promptN,
+				CompletionTokens: contentN + reasonN,
+				CompletionTokensDetails: &ChatCompletionTokens{
+					ReasoningTokens: reasonN,
+				},
+			},
 		})
 	}
 
@@ -162,6 +181,8 @@ func hdrChatCompletions(c Ctx) error {
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("Transfer-Encoding", "chunked")
+
+	contentB, reasonB := &bytes.Buffer{}, &bytes.Buffer{}
 
 	for {
 		select {
@@ -176,8 +197,10 @@ func hdrChatCompletions(c Ctx) error {
 				delta := &ChatCompletionMessage{Role: "assistant"}
 				if msg.Content != "" {
 					delta.Content = msg.Content
+					contentB.WriteString(msg.Content)
 				} else if msg.ReasoningContent != "" {
 					delta.ReasoningContent = msg.ReasoningContent
+					reasonB.WriteString(msg.ReasoningContent)
 				} else {
 					continue
 				}
@@ -190,6 +213,21 @@ func hdrChatCompletions(c Ctx) error {
 						Index: cast.To[int64](msg.Index),
 						Delta: delta,
 					}},
+				})
+			} else {
+				contentN, reasonN := tiktoken.NumTokens(contentB.String()), tiktoken.NumTokens(reasonB.String())
+				data = json.MustMarshalToString(&ChatCompletionResp{
+					Object:  "chat.completion.chunk",
+					Created: unix,
+					Model:   req.Model,
+					Usage: &ChatCompletionUsage{
+						TotalTokens:      promptN + contentN + reasonN,
+						PromptTokens:     promptN,
+						CompletionTokens: contentN + reasonN,
+						CompletionTokensDetails: &ChatCompletionTokens{
+							ReasoningTokens: reasonN,
+						},
+					},
 				})
 			}
 			_, err = fmt.Fprintf(w, "data: %s\n\n", data)
