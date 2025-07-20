@@ -88,11 +88,21 @@ definitions:
           disabled：关闭思考模式
         type: string
     type: object
+  api.ChatCompletionTokens:
+    properties:
+      reasoning_tokens:
+        description: 思维链 tokens
+        type: integer
+    type: object
   api.ChatCompletionUsage:
     properties:
       completion_tokens:
         description: 输出 tokens
         type: integer
+      completion_tokens_details:
+        allOf:
+        - $ref: '#/definitions/api.ChatCompletionTokens'
+        description: 输出 tokens
       prompt_tokens:
         description: 输入 tokens
         type: integer

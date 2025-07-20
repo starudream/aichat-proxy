@@ -234,12 +234,29 @@ const docTemplate = `{
                 }
             }
         },
+        "api.ChatCompletionTokens": {
+            "type": "object",
+            "properties": {
+                "reasoning_tokens": {
+                    "description": "思维链 tokens",
+                    "type": "integer"
+                }
+            }
+        },
         "api.ChatCompletionUsage": {
             "type": "object",
             "properties": {
                 "completion_tokens": {
                     "description": "输出 tokens",
                     "type": "integer"
+                },
+                "completion_tokens_details": {
+                    "description": "输出 tokens",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/api.ChatCompletionTokens"
+                        }
+                    ]
                 },
                 "prompt_tokens": {
                     "description": "输入 tokens",
