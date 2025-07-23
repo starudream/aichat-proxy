@@ -21,8 +21,9 @@ definitions:
   api.ChatCompletionMessage:
     properties:
       content:
+        allOf:
+        - $ref: '#/definitions/api.ChatCompletionMessageContent'
         description: 内容
-        type: string
       reasoning_content:
         description: 推理内容（仅响应）
         type: string
@@ -31,6 +32,30 @@ definitions:
         type: string
     required:
     - role
+    type: object
+  api.ChatCompletionMessageContent:
+    properties:
+      listValue:
+        description: 数组
+        items:
+          $ref: '#/definitions/api.ChatCompletionMessageContentPart'
+        type: array
+      stringValue:
+        description: 文本
+        type: string
+    type: object
+  api.ChatCompletionMessageContentPart:
+    properties:
+      image_url:
+        allOf:
+        - $ref: '#/definitions/api.ChatMessageImageURL'
+        description: 图片
+      text:
+        description: 文本
+        type: string
+      type:
+        description: 类型，可选 text、image_url
+        type: string
     type: object
   api.ChatCompletionReq:
     properties:
@@ -52,6 +77,11 @@ definitions:
         allOf:
         - $ref: '#/definitions/api.ChatCompletionThinking'
         description: 推理配置
+      tools:
+        description: 工具
+        items:
+          $ref: '#/definitions/api.ChatCompletionTool'
+        type: array
     required:
     - model
     type: object
@@ -94,6 +124,27 @@ definitions:
         description: 思维链 tokens
         type: integer
     type: object
+  api.ChatCompletionTool:
+    properties:
+      function:
+        allOf:
+        - $ref: '#/definitions/api.ChatCompletionToolFunction'
+        description: 工具定义
+      type:
+        description: 类型，可选 function
+        type: string
+    type: object
+  api.ChatCompletionToolFunction:
+    properties:
+      description:
+        description: 描述
+        type: string
+      name:
+        description: 名称
+        type: string
+      parameters:
+        description: 参数列表
+    type: object
   api.ChatCompletionUsage:
     properties:
       completion_tokens:
@@ -109,6 +160,15 @@ definitions:
       total_tokens:
         description: 总消耗 tokens
         type: integer
+    type: object
+  api.ChatMessageImageURL:
+    properties:
+      detail:
+        description: 图片的质量，可选 high、low、auto
+        type: string
+      url:
+        description: 图片链接或图片的 Base64 编码
+        type: string
     type: object
   api.Index:
     properties:

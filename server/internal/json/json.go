@@ -1,6 +1,7 @@
 package json
 
 import (
+	stdjson "encoding/json"
 	"fmt"
 	"io"
 
@@ -26,6 +27,8 @@ var (
 
 	NewEncoder = json.NewEncoder
 	NewDecoder = json.NewDecoder
+
+	Compact = stdjson.Compact
 )
 
 func MustMarshal(v any) []byte {

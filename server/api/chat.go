@@ -27,15 +27,68 @@ type ChatCompletionReq struct {
 	EnableThinking bool `json:"enable_thinking,omitempty"`
 	// 推理配置
 	Thinking *ChatCompletionThinking `json:"thinking,omitempty"`
+	// 工具
+	Tools []*ChatCompletionTool `json:"tools,omitempty"`
 }
 
 type ChatCompletionMessage struct {
 	// 角色
 	Role string `json:"role" validate:"required"`
 	// 内容
-	Content string `json:"content"`
+	Content *ChatCompletionMessageContent `json:"content"`
 	// 推理内容（仅响应）
 	ReasoningContent string `json:"reasoning_content,omitempty"`
+}
+
+type ChatCompletionMessageContent struct {
+	// 文本
+	StringValue string
+	// 数组
+	ListValue []*ChatCompletionMessageContentPart
+}
+
+var jsonNULL = []byte("null")
+
+func (v *ChatCompletionMessageContent) MarshalJSON() ([]byte, error) {
+	if v.StringValue != "" {
+		return json.Marshal(v.StringValue)
+	} else if len(v.ListValue) > 0 {
+		return json.Marshal(v.ListValue)
+	} else {
+		return jsonNULL, nil
+	}
+}
+
+func (v *ChatCompletionMessageContent) UnmarshalJSON(bs []byte) error {
+	var sv string
+	if err := json.Unmarshal(bs, &sv); err == nil {
+		*v = ChatCompletionMessageContent{StringValue: sv}
+		return nil
+	}
+
+	var lv []*ChatCompletionMessageContentPart
+	if err := json.Unmarshal(bs, &lv); err == nil {
+		*v = ChatCompletionMessageContent{ListValue: lv}
+		return nil
+	}
+
+	return nil
+}
+
+type ChatCompletionMessageContentPart struct {
+	// 类型，可选 text、image_url
+	Type string `json:"type"`
+	// 文本
+	Text string `json:"text,omitempty"`
+	// 图片
+	ImageURL *ChatMessageImageURL `json:"image_url,omitempty"`
+}
+
+type ChatMessageImageURL struct {
+	// 图片链接或图片的 Base64 编码
+	URL string `json:"url"`
+	// 图片的质量，可选 high、low、auto
+	Detail string `json:"detail,omitempty"`
 }
 
 type ChatCompletionThinking struct {
@@ -43,6 +96,22 @@ type ChatCompletionThinking struct {
 	// enabled：开启思考模式
 	// disabled：关闭思考模式
 	Type string `json:"type"`
+}
+
+type ChatCompletionTool struct {
+	// 类型，可选 function
+	Type string `json:"type"`
+	// 工具定义
+	Function *ChatCompletionToolFunction `json:"function,omitempty"`
+}
+
+type ChatCompletionToolFunction struct {
+	// 名称
+	Name string `json:"name"`
+	// 描述
+	Description string `json:"description,omitempty"`
+	// 参数列表
+	Parameters any `json:"parameters"`
 }
 
 type ChatCompletionResp struct {
@@ -87,20 +156,43 @@ type ChatCompletionTokens struct {
 	ReasoningTokens int `json:"reasoning_tokens,omitempty"`
 }
 
-var chatPrompt = template.Must(template.New("").Parse(`
-{{- range $index, $message := .Messages }}
-{{- if gt $index 0 }}{{ print "---\n" }}{{ end }}
-{{- if eq $message.Role "system" }}
-{{- print "【系统】" }}
-{{- else if eq $message.Role "user" }}
-{{- print "【用户】" }}
-{{- else if eq $message.Role "assistant" }}
-{{- print "【助手】" }}
-{{- else if eq $message.Role "tool" }}
-{{- print "【工具】" }}
-{{- end }}
-{{ $message.Content }}
-{{ end -}}
+var chatPrompt = template.Must(template.New("").
+	Funcs(map[string]any{
+		"jm": json.MarshalToString,
+	}).
+	Parse(`
+{{- range $i, $message := .Messages }}
+	{{- if gt $i 0 }}
+		{{- print "---\n" }}
+	{{- end }}
+	{{- if eq $message.Role "system" }}
+		{{- print "【系统】\n" }}
+	{{- else if eq $message.Role "user" }}
+		{{- print "【用户】\n" }}
+	{{- else if eq $message.Role "assistant" }}
+		{{- print "【助手】\n" }}
+	{{- else if eq $message.Role "tool" }}
+		{{- print "【工具】\n" }}
+	{{- end }}
+	{{- range $j, $value := $message.Content.ListValue }}
+		{{- if gt $j 0 }}{{ print "\n" }}{{ end }}
+		{{- print $value.Text }}
+	{{- else }}
+		{{- print $message.Content.StringValue }}
+	{{- end }}
+{{ end }}
+{{- range $i, $tool := .Tools }}
+	{{- if eq $i 0 }}
+		{{- print "~~~\n" }}
+	{{- else }}
+		{{- print "---\n" }}
+	{{- end }}
+	{{- if eq $tool.Type "function" }}
+		{{- print "【工具】\n" }}
+		{{- print $tool.Function.Name " (" $tool.Function.Description ")\n" }}
+		{{- jm $tool.Function.Parameters }}
+	{{- end }}
+{{ end }}
 `))
 
 // Chat Completions
@@ -160,7 +252,7 @@ func hdrChatCompletions(c Ctx) error {
 			Choices: []*ChatCompletionChoice{{
 				Message: &ChatCompletionMessage{
 					Role:             "assistant",
-					Content:          content,
+					Content:          &ChatCompletionMessageContent{StringValue: content},
 					ReasoningContent: reason,
 				},
 				FinishReason: "stop",
@@ -196,7 +288,7 @@ func hdrChatCompletions(c Ctx) error {
 			if msg.FinishReason == "" {
 				delta := &ChatCompletionMessage{Role: "assistant"}
 				if msg.Content != "" {
-					delta.Content = msg.Content
+					delta.Content = &ChatCompletionMessageContent{StringValue: msg.Content}
 					contentB.WriteString(msg.Content)
 				} else if msg.ReasoningContent != "" {
 					delta.ReasoningContent = msg.ReasoningContent

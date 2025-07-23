@@ -142,7 +142,11 @@ const docTemplate = `{
             "properties": {
                 "content": {
                     "description": "内容",
-                    "type": "string"
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/api.ChatCompletionMessageContent"
+                        }
+                    ]
                 },
                 "reasoning_content": {
                     "description": "推理内容（仅响应）",
@@ -150,6 +154,43 @@ const docTemplate = `{
                 },
                 "role": {
                     "description": "角色",
+                    "type": "string"
+                }
+            }
+        },
+        "api.ChatCompletionMessageContent": {
+            "type": "object",
+            "properties": {
+                "listValue": {
+                    "description": "数组",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.ChatCompletionMessageContentPart"
+                    }
+                },
+                "stringValue": {
+                    "description": "文本",
+                    "type": "string"
+                }
+            }
+        },
+        "api.ChatCompletionMessageContentPart": {
+            "type": "object",
+            "properties": {
+                "image_url": {
+                    "description": "图片",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/api.ChatMessageImageURL"
+                        }
+                    ]
+                },
+                "text": {
+                    "description": "文本",
+                    "type": "string"
+                },
+                "type": {
+                    "description": "类型，可选 text、image_url",
                     "type": "string"
                 }
             }
@@ -186,6 +227,13 @@ const docTemplate = `{
                             "$ref": "#/definitions/api.ChatCompletionThinking"
                         }
                     ]
+                },
+                "tools": {
+                    "description": "工具",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.ChatCompletionTool"
+                    }
                 }
             }
         },
@@ -243,6 +291,39 @@ const docTemplate = `{
                 }
             }
         },
+        "api.ChatCompletionTool": {
+            "type": "object",
+            "properties": {
+                "function": {
+                    "description": "工具定义",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/api.ChatCompletionToolFunction"
+                        }
+                    ]
+                },
+                "type": {
+                    "description": "类型，可选 function",
+                    "type": "string"
+                }
+            }
+        },
+        "api.ChatCompletionToolFunction": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "description": "描述",
+                    "type": "string"
+                },
+                "name": {
+                    "description": "名称",
+                    "type": "string"
+                },
+                "parameters": {
+                    "description": "参数列表"
+                }
+            }
+        },
         "api.ChatCompletionUsage": {
             "type": "object",
             "properties": {
@@ -265,6 +346,19 @@ const docTemplate = `{
                 "total_tokens": {
                     "description": "总消耗 tokens",
                     "type": "integer"
+                }
+            }
+        },
+        "api.ChatMessageImageURL": {
+            "type": "object",
+            "properties": {
+                "detail": {
+                    "description": "图片的质量，可选 high、low、auto",
+                    "type": "string"
+                },
+                "url": {
+                    "description": "图片链接或图片的 Base64 编码",
+                    "type": "string"
                 }
             }
         },

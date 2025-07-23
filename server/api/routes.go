@@ -6,6 +6,7 @@ import (
 
 	"github.com/starudream/aichat-proxy/server/config"
 	"github.com/starudream/aichat-proxy/server/docs"
+	"github.com/starudream/aichat-proxy/server/internal/echox"
 )
 
 // General Swagger API Info
@@ -28,7 +29,7 @@ import (
 func setupRoutes(app *echo.Echo) {
 	app.GET("/", hdrIndex)
 
-	v1 := app.Group("/v1", mdLogger(), mdAuth())
+	v1 := app.Group("/v1", echox.MiddlewareLogger(), mdAuth())
 	{
 		v1.GET("/models", hdrModels)
 		v1.POST("/chat/completions", hdrChatCompletions)

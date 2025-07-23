@@ -119,32 +119,3 @@ func mdRecover() echo.MiddlewareFunc {
 		},
 	})
 }
-
-func mdLogger() echo.MiddlewareFunc {
-	return middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
-		LogValuesFunc: func(c echo.Context, vs middleware.RequestLoggerValues) error {
-			logger.Ctx(c.Request().Context()).
-				Info().
-				Err(vs.Error).
-				Dur("latency", vs.Latency).
-				Str("protocol", vs.Protocol).
-				Str("ip", vs.RemoteIP).
-				Str("method", vs.Method).
-				Str("route", vs.RoutePath).
-				Str("requestId", vs.RequestID).
-				Str("ua", vs.UserAgent).
-				Int("status", vs.Status).
-				Msg("new request")
-			return nil
-		},
-		LogLatency:   true,
-		LogProtocol:  true,
-		LogRemoteIP:  true,
-		LogMethod:    true,
-		LogRoutePath: true,
-		LogRequestID: true,
-		LogUserAgent: true,
-		LogStatus:    true,
-		LogError:     true,
-	})
-}
