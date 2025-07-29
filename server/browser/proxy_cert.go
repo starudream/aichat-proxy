@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/elazarl/goproxy"
 	lru "github.com/hashicorp/golang-lru/v2"
@@ -33,24 +34,31 @@ var (
 
 func newCert(hostname string) (_ *tls.Certificate, err error) {
 	caOnce.Do(func() {
-		ca, err = signer.CreateCA(config.AppName)
-		if err == nil {
-			_ = signer.SaveCert(ca, filepath.Join(config.CertsPath, config.AppName+".pem"))
+		ca, err = signer.ReadCert(filepath.Join(config.CertsPath, config.AppName+".pem"))
+		if err != nil {
+			ca, err = signer.CreateCA(config.AppName)
+			if err == nil {
+				_ = signer.SaveCert(ca, filepath.Join(config.CertsPath, config.AppName+".pem"))
+			}
 		}
 	})
 	if err != nil {
 		return nil, err
 	}
 	cert, ok := certs.Get(hostname)
-	if ok {
+	if !ok {
+		cert, err = signer.ReadCert(filepath.Join(config.CertsPath, hostname+".pem"))
+	}
+	if cert != nil && cert.Leaf.NotAfter.After(time.Now().AddDate(0, 0, 7)) {
+		certs.Add(hostname, cert)
 		return cert, nil
 	}
 	cert, err = signer.CreateDV(ca, hostname)
 	if err != nil {
 		return nil, err
 	}
-	certs.Add(hostname, cert)
 	_ = signer.SaveCert(cert, filepath.Join(config.CertsPath, hostname+".pem"))
+	certs.Add(hostname, cert)
 	return cert, nil
 }
 

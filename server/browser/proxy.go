@@ -101,6 +101,11 @@ var mitmHosts = map[string]*mitmModule{
 		TypePrefix:   "text/event-stream",
 		PathContains: "/chat/conversation/",
 	},
+	"chat.z.ai:443": {
+		Name:         "zhipu",
+		TypePrefix:   "text/event-stream",
+		PathContains: "/chat/completions",
+	},
 	"alkalimakersuite-pa.clients6.google.com:443": {
 		Name:         "google",
 		TypePrefix:   "application/json+protobuf",

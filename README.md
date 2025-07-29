@@ -26,6 +26,7 @@ Status: **WIP**
 - [x] [Kimi](https://www.kimi.com)
 - [x] [Qwen](https://chat.qwen.ai)
 - [x] [Yuanbao](https://yuanbao.tencent.com)
+- [x] [ZhiPu](https://chat.z.ai)
 
 ## Docker Compose
 

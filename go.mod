@@ -4,7 +4,7 @@ go 1.24
 
 require (
 	github.com/andybalholm/brotli v1.2.0
-	github.com/bytedance/sonic v1.13.3
+	github.com/bytedance/sonic v1.14.0
 	github.com/elazarl/goproxy v1.7.2
 	github.com/go-playground/validator/v10 v10.27.0
 	github.com/google/uuid v1.6.0

@@ -104,6 +104,42 @@ func CreateDV(ca *tls.Certificate, names ...string) (*tls.Certificate, error) {
 	return CreateCert(crt, ca.Leaf, ca.PrivateKey.(*rsa.PrivateKey))
 }
 
+func ReadCert(path string) (_ *tls.Certificate, err error) {
+	logger.Debug().Msgf("read cert pem from %s", path)
+	defer func() {
+		if err != nil {
+			logger.Error().Err(err).Msgf("read cert pem from %s", path)
+		}
+	}()
+	bs, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("signer: read file error: %w", err)
+	}
+	cert := &tls.Certificate{}
+	for block, rest := pem.Decode(bs); block != nil; block, rest = pem.Decode(rest) {
+		switch block.Type {
+		case "CERTIFICATE":
+			cert.Certificate = append(cert.Certificate, block.Bytes)
+			cert.Leaf, err = x509.ParseCertificate(block.Bytes)
+			if err != nil {
+				return nil, fmt.Errorf("signer: parse certificate error: %w", err)
+			}
+		case "RSA PRIVATE KEY":
+			cert.PrivateKey, err = x509.ParsePKCS1PrivateKey(block.Bytes)
+			if err != nil {
+				return nil, fmt.Errorf("signer: parse private key error: %w", err)
+			}
+		}
+	}
+	if cert.Leaf == nil {
+		return nil, fmt.Errorf("signer: certificate not found")
+	}
+	if cert.PrivateKey == nil {
+		return nil, fmt.Errorf("signer: private key not found")
+	}
+	return cert, nil
+}
+
 func SaveCert(cert *tls.Certificate, path string) error {
 	defer func() { logger.Debug().Msgf("save cert pem to %s", path) }()
 	blocks := make([][]byte, len(cert.Certificate)+1)
