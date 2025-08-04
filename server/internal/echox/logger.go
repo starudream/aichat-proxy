@@ -78,7 +78,7 @@ func MiddlewareLogger() echo.MiddlewareFunc {
 					resMsg = buf.Bytes()
 				}
 			}
-			resLog := log.Info().Err(err).
+			resLog := log.Err(err).
 				Int("status", c.Response().Status).
 				Dur("took", time.Since(startTime)).
 				Str("contentType", resType)
