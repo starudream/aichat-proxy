@@ -201,10 +201,6 @@ const docTemplate = `{
                 "model"
             ],
             "properties": {
-                "enable_thinking": {
-                    "description": "是否启用推理",
-                    "type": "boolean"
-                },
                 "messages": {
                     "description": "消息列表",
                     "type": "array",

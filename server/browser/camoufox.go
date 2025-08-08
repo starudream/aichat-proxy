@@ -55,9 +55,6 @@ func (p *CamoufoxParams) init() *CamoufoxParams {
 	if config.DEBUG("BROWSER") {
 		p.Debug = true
 	}
-	if len(p.Addons) == 0 {
-		p.Addons = []string{config.AddonTamperMonkeyPath}
-	}
 	if !p.Headless && p.VirtualDisplay == "" {
 		p.VirtualDisplay = ":0.0"
 	}

@@ -23,8 +23,6 @@ type ChatCompletionReq struct {
 	Messages []*ChatCompletionMessage `json:"messages"`
 	// 是否流式
 	Stream bool `json:"stream,omitempty"`
-	// 是否启用推理
-	EnableThinking bool `json:"enable_thinking,omitempty"`
 	// 推理配置
 	Thinking *ChatCompletionThinking `json:"thinking,omitempty"`
 	// 工具
@@ -230,9 +228,7 @@ func hdrChatCompletions(c Ctx) error {
 	unix := time.Now().Unix()
 
 	options := browser.HandleChatOptions{}
-	if req.EnableThinking {
-		options.Thinking = "enabled"
-	} else if req.Thinking != nil {
+	if req.Thinking != nil {
 		options.Thinking = req.Thinking.Type
 	}
 
@@ -284,7 +280,7 @@ func hdrChatCompletions(c Ctx) error {
 			if !ok {
 				return nil
 			}
-			data := "[DONE]"
+			data := ""
 			if msg.FinishReason == "" {
 				delta := &ChatCompletionMessage{Role: "assistant"}
 				if msg.Content != "" {
@@ -321,6 +317,7 @@ func hdrChatCompletions(c Ctx) error {
 						},
 					},
 				})
+				data += "\n\ndata: [DONE]"
 			}
 			_, err = fmt.Fprintf(w, "data: %s\n\n", data)
 			if err != nil {

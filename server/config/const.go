@@ -9,11 +9,9 @@ const (
 	ProxyAddress  = "127.0.0.1:9543"
 	CamoufoxPort  = 9550
 
-	AppRootPath           = "/app"
-	AddonPath             = AppRootPath + "/addons"
-	AddonTamperMonkeyPath = AddonPath + "/tampermonkey"
-	UserdataPath          = AppRootPath + "/userdata"
-	Userdata0Path         = UserdataPath + "/user0"
-	DownloadsPath         = AppRootPath + "/downloads"
-	CertsPath             = AppRootPath + "/certs"
+	AppRootPath   = "/app"
+	UserdataPath  = AppRootPath + "/userdata"
+	Userdata0Path = UserdataPath + "/user0"
+	DownloadsPath = AppRootPath + "/downloads"
+	CertsPath     = AppRootPath + "/certs"
 )
