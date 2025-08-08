@@ -3,7 +3,7 @@ services:
     # build:
     #   context: camoufox
     #   dockerfile: Dockerfile
-    image: registry.cn-shanghai.aliyuncs.com/starudream/aichat-proxy-camoufox:20250712
+    image: registry.cn-shanghai.aliyuncs.com/starudream/aichat-proxy-camoufox:20250808
     platform: linux/amd64
     hostname: camoufox
     volumes:
