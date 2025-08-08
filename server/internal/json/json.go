@@ -6,6 +6,7 @@ import (
 	"io"
 
 	"github.com/bytedance/sonic"
+	"github.com/bytedance/sonic/ast"
 
 	"github.com/starudream/aichat-proxy/server/internal/conv"
 )
@@ -29,6 +30,10 @@ var (
 	NewDecoder = json.NewDecoder
 
 	Compact = stdjson.Compact
+
+	Get = sonic.GetCopyFromString
+
+	TypeArray = ast.V_ARRAY
 )
 
 func MustMarshal(v any) []byte {

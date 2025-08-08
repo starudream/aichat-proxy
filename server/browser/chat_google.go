@@ -1,9 +1,11 @@
 package browser
 
 import (
-	"github.com/bytedance/sonic/ast"
+	"strings"
+
 	"github.com/playwright-community/playwright-go"
 
+	"github.com/starudream/aichat-proxy/server/internal/json"
 	"github.com/starudream/aichat-proxy/server/logger"
 )
 
@@ -88,17 +90,11 @@ func (h *chatGoogleHandler) Send() error {
 }
 
 func (h *chatGoogleHandler) Unmarshal(s string) *ChatMessage {
-	as := ast.NewSearcher(s)
-	as.SearchOptions = ast.SearchOptions{
-		ValidateJSON:   false,
-		CopyReturn:     true,
-		ConcurrentRead: true,
-	}
-	node, err := as.GetByPathCopy(0, 0, 0, 0, 0)
+	node, err := json.Get(s, 0, 0, 0, 0, 0)
 	if err != nil {
 		return nil
 	}
-	if node.TypeSafe() != ast.V_ARRAY {
+	if node.TypeSafe() != json.TypeArray {
 		h.log.Error().Msgf("unmarshal google node expected array, got %d", node.TypeSafe())
 		return nil
 	}
@@ -115,6 +111,9 @@ func (h *chatGoogleHandler) Unmarshal(s string) *ChatMessage {
 	if !ok {
 		h.log.Error().Msg("unmarshal google node array[1] error")
 		return nil
+	}
+	if strings.HasPrefix(content, "```") {
+		content = "\n" + content
 	}
 	if len(arr) >= 13 {
 		return &ChatMessage{ReasoningContent: content}
