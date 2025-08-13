@@ -1,8 +1,6 @@
 package browser
 
 import (
-	"strings"
-
 	"github.com/playwright-community/playwright-go"
 
 	"github.com/starudream/aichat-proxy/server/internal/json"
@@ -111,9 +109,6 @@ func (h *chatGoogleHandler) Unmarshal(s string) *ChatMessage {
 	if !ok {
 		h.log.Error().Msg("unmarshal google node array[1] error")
 		return nil
-	}
-	if strings.HasPrefix(content, "```") {
-		content = "\n" + content
 	}
 	if len(arr) >= 13 {
 		return &ChatMessage{ReasoningContent: content}
