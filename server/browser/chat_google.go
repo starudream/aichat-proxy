@@ -72,7 +72,7 @@ func (h *chatGoogleHandler) Input(prompt string) (err error) {
 
 func (h *chatGoogleHandler) Send() error {
 	h.log.Debug().Msg("wait for chat send button")
-	locSend := h.locChat.Locator("run-button button")
+	locSend := h.locChat.Locator("ms-run-button")
 	if err := locSend.WaitFor(); err != nil {
 		h.log.Error().Err(err).Msg("wait for chat send button error")
 		return err
