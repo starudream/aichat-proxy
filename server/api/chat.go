@@ -3,7 +3,6 @@ package api
 import (
 	"bytes"
 	"fmt"
-	"strings"
 	"text/template"
 	"time"
 
@@ -221,7 +220,7 @@ func hdrChatCompletions(c Ctx) error {
 	if err := chatPrompt.Execute(buf, req); err != nil {
 		return err
 	}
-	prompt := strings.TrimSpace(buf.String())
+	prompt := buf.String()
 	promptN := tiktoken.NumTokens(prompt)
 
 	ctx := c.Request().Context()

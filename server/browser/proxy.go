@@ -153,11 +153,12 @@ func doResponse(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Response {
 			case "br":
 				rr = brotli.NewReader(pr)
 			}
-			if module.Name == "google" {
+			switch module.Name {
+			case "google":
 				handleStreamGoogle(module, rr)
-			} else if module.Name == "kimi" {
+			case "kimi":
 				handleStreamKimi(module, rr)
-			} else {
+			default:
 				handleStreamLine(module, rr)
 			}
 			logger.Debug().Msg("proxy handle stream finish")

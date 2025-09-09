@@ -88,7 +88,7 @@ type yuanbaoEvent struct {
 // {"type":"text","msg":"日"}
 
 func (h *chatYuanbaoHandler) Unmarshal(s string) *ChatMessage {
-	s = strings.TrimSpace(strings.TrimPrefix(s, "data:"))
+	s = strings.TrimPrefix(s, "data:")
 	if s == "" {
 		return nil
 	}

@@ -85,7 +85,7 @@ type deepseekV struct {
 }
 
 func (h *chatDeepseekHandler) Unmarshal(s string) *ChatMessage {
-	s = strings.TrimSpace(strings.TrimPrefix(s, "data:"))
+	s = strings.TrimPrefix(s, "data:")
 	if s == "" {
 		return nil
 	}

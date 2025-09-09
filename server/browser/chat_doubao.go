@@ -180,7 +180,7 @@ type doubaoEventContent struct {
 }
 
 func (h *chatDoubaoHandler) Unmarshal(s string) *ChatMessage {
-	s = strings.TrimSpace(strings.TrimPrefix(s, "data:"))
+	s = strings.TrimPrefix(s, "data:")
 	if s == "" {
 		return nil
 	}

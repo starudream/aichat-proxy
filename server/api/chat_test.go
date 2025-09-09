@@ -3,7 +3,6 @@ package api
 import (
 	"bytes"
 	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/starudream/aichat-proxy/server/internal/json"
@@ -77,7 +76,7 @@ func TestChatPrompt(t *testing.T) {
 	if err := chatPrompt.Execute(buf, req); err != nil {
 		t.Fatal(err)
 	}
-	prompt := strings.TrimSpace(buf.String())
+	prompt := buf.String()
 	fmt.Println("===")
 	fmt.Println(prompt)
 	fmt.Println("===")

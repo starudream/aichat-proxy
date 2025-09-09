@@ -1,8 +1,6 @@
 package browser
 
 import (
-	"strings"
-
 	"github.com/playwright-community/playwright-go"
 
 	"github.com/starudream/aichat-proxy/server/internal/json"
@@ -94,7 +92,6 @@ type kimiEvent struct {
 }
 
 func (h *chatKimiHandler) Unmarshal(s string) *ChatMessage {
-	s = strings.TrimSpace(s)
 	if s == "" {
 		return nil
 	}
