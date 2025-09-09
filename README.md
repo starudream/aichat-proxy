@@ -3,15 +3,15 @@
 Status: **WIP**
 
 <p align="center">
-<img src="https://img.shields.io/github/actions/workflow/status/starudream/aichat-proxy/docker-camoufox.yml?style=for-the-badge&label=camoufox" alt="golang">
-<img src="https://img.shields.io/docker/v/starudream/aichat-proxy-camoufox?style=for-the-badge&label=camoufox" alt="golang">
-<img src="https://img.shields.io/docker/image-size/starudream/aichat-proxy-camoufox?style=for-the-badge&label=camoufox" alt="golang">
+<img src="https://img.shields.io/github/actions/workflow/status/starudream/aichat-proxy/docker-camoufox.yml?style=for-the-badge&label=camoufox" alt="camoufox workflow">
+<img src="https://img.shields.io/docker/v/starudream/aichat-proxy-camoufox?style=for-the-badge&label=camoufox" alt="camoufox version">
+<img src="https://img.shields.io/docker/image-size/starudream/aichat-proxy-camoufox?style=for-the-badge&label=camoufox" alt="camoufox size">
 <br>
-<img src="https://img.shields.io/github/actions/workflow/status/starudream/aichat-proxy/docker-aichat-proxy.yml?style=for-the-badge&label=aichat-proxy" alt="golang">
-<img src="https://img.shields.io/docker/v/starudream/aichat-proxy?style=for-the-badge&label=aichat-proxy" alt="golang">
-<img src="https://img.shields.io/docker/image-size/starudream/aichat-proxy?style=for-the-badge&label=aichat-proxy" alt="golang">
+<img src="https://img.shields.io/github/actions/workflow/status/starudream/aichat-proxy/docker-aichat-proxy.yml?style=for-the-badge&label=aichat-proxy" alt="aichat-proxy workflow">
+<img src="https://img.shields.io/docker/v/starudream/aichat-proxy?style=for-the-badge&label=aichat-proxy" alt="aichat-proxy version">
+<img src="https://img.shields.io/docker/image-size/starudream/aichat-proxy?style=for-the-badge&label=aichat-proxy" alt="aichat-proxy size">
 <br>
-<img src="https://img.shields.io/github/last-commit/starudream/aichat-proxy?style=for-the-badge" alt="license">
+<img src="https://img.shields.io/github/last-commit/starudream/aichat-proxy?style=for-the-badge" alt="commit">
 <img src="https://img.shields.io/github/license/starudream/aichat-proxy?style=for-the-badge" alt="license">
 <br><br>
 <img src="https://socialify.git.ci/starudream/aichat-proxy/image?font=Inter&forks=1&issues=1&language=1&name=1&owner=1&pattern=Circuit%20Board&pulls=1&stargazers=1&theme=Auto" alt="project">
