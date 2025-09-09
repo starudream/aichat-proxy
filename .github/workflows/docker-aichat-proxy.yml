@@ -24,10 +24,10 @@ jobs:
       VERSION: ${{ inputs.version }}
       CAMOUFOX_VERSION: ${{ inputs.camoufox-version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version: stable
           check-latest: true
