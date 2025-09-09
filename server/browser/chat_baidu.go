@@ -19,8 +19,6 @@ type chatBaiduHandler struct {
 
 	log  logger.ZLogger
 	page playwright.Page
-
-	locChat playwright.Locator
 }
 
 func (h *chatBaiduHandler) Name() string {
@@ -38,47 +36,8 @@ func (h *chatBaiduHandler) Setup(options HandleChatOptions) {
 }
 
 func (h *chatBaiduHandler) Input(prompt string) (err error) {
-	h.log.Debug().Msg("wait for create chat button")
-	locCreate := h.page.Locator(`div[class^="newSession"]`, playwright.PageLocatorOptions{HasText: "新对话"})
-	if err = locCreate.WaitFor(); err != nil {
-		h.log.Error().Err(err).Msg("wait for create chat button error")
-		return err
-	}
-	h.log.Debug().Msg("click create chat button")
-	if err = locCreate.Click(); err != nil {
-		h.log.Error().Err(err).Msg("click create chat button error")
-		return err
-	}
-
-	h.log.Debug().Msg("wait for chat main")
-	h.locChat = h.page.Locator(`div[class^="DialogueInputRow"]`)
-	if err = h.locChat.WaitFor(); err != nil {
-		h.log.Error().Err(err).Msg("wait for chat main error")
-		return err
-	}
-
-	h.log.Debug().Msg("wait for deep think button")
-	locThink := h.locChat.Locator(`div[class^="item"]`, playwright.LocatorLocatorOptions{HasText: "思考"})
-	if err = locThink.WaitFor(); err != nil {
-		h.log.Error().Err(err).Msg("wait for deep think button error")
-	} else {
-		active := false
-		attrs, _ := locThink.GetAttribute("class")
-		for _, attr := range strings.Split(attrs, " ") {
-			if strings.HasPrefix(attr, "active") {
-				active = true
-			}
-		}
-		if !active {
-			h.log.Debug().Msg("click deep think button")
-			if err = locThink.Click(); err != nil {
-				h.log.Error().Err(err).Msg("click deep think button error")
-			}
-		}
-	}
-
 	h.log.Debug().Msg("wait for chat editor")
-	locEditor := h.locChat.Locator("div.yc-editor")
+	locEditor := h.page.Locator("div.yc-editor")
 	if err = locEditor.WaitFor(); err != nil {
 		h.log.Error().Err(err).Msg("wait for chat editor error")
 		return err
@@ -95,7 +54,7 @@ func (h *chatBaiduHandler) Input(prompt string) (err error) {
 
 func (h *chatBaiduHandler) Send() error {
 	h.log.Debug().Msg("wait for chat send button")
-	locSend := h.locChat.Locator("span#sendBtn")
+	locSend := h.page.Locator(`div[class^="send_"]`)
 	if err := locSend.WaitFor(); err != nil {
 		h.log.Error().Err(err).Msg("wait for chat send button error")
 		return err

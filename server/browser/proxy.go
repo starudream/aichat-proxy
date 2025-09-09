@@ -2,6 +2,7 @@ package browser
 
 import (
 	"bufio"
+	"bytes"
 	"compress/gzip"
 	"context"
 	stdjson "encoding/json"
@@ -93,8 +94,8 @@ var mitmHosts = map[string]*mitmModule{
 	},
 	"www.kimi.com:443": {
 		Name:         "kimi",
-		TypePrefix:   "text/event-stream",
-		PathContains: "/completion/stream",
+		TypePrefix:   "application/connect+json",
+		PathContains: "/kimi.chat.v1.ChatService/Chat",
 	},
 	"yiyan.baidu.com:443": {
 		Name:         "baidu",
@@ -154,6 +155,8 @@ func doResponse(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Response {
 			}
 			if module.Name == "google" {
 				handleStreamGoogle(module, rr)
+			} else if module.Name == "kimi" {
+				handleStreamKimi(module, rr)
 			} else {
 				handleStreamLine(module, rr)
 			}
@@ -199,6 +202,35 @@ func handleStreamGoogle(module *mitmModule, rr io.Reader) {
 		logger.Error().Msgf("proxy read suffix want ]], got: %s", suffix)
 		return
 	}
+}
+
+func handleStreamKimi(module *mitmModule, rr io.Reader) {
+	for sc := newDelimScanner(rr, []byte{0, 0, 0, 0}); sc.Scan(); {
+		data := sc.Bytes()
+		if len(data) <= 1 {
+			continue
+		}
+		text := conv.BytesToString(data[1:])
+		logger.Debug().Msgf("proxy stream raw: %s", text)
+		pushStreamEvent(module, text)
+	}
+}
+
+func newDelimScanner(rr io.Reader, delim []byte) *bufio.Scanner {
+	sc := bufio.NewScanner(rr)
+	sc.Split(func(data []byte, eof bool) (int, []byte, error) {
+		if eof && len(data) == 0 {
+			return 0, nil, nil
+		}
+		if i := bytes.Index(data, delim); i >= 0 {
+			return i + len(delim), data[:i], nil
+		}
+		if eof {
+			return len(data), data, nil
+		}
+		return 0, nil, nil
+	})
+	return sc
 }
 
 func handleStreamLine(module *mitmModule, rr io.Reader) {

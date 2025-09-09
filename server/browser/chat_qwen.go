@@ -1,10 +1,7 @@
 package browser
 
 import (
-	"fmt"
 	"strings"
-	"sync/atomic"
-	"time"
 
 	"github.com/playwright-community/playwright-go"
 
@@ -40,56 +37,6 @@ func (h *chatQwenHandler) Setup(options HandleChatOptions) {
 }
 
 func (h *chatQwenHandler) Input(prompt string) (err error) {
-	closed := atomic.Bool{}
-
-	go func() {
-		h.log.Debug().Msg("wait for close sidebar button")
-		locSide := h.page.Locator("button.slide-switch")
-		if err = locSide.WaitFor(); err == nil {
-			h.log.Debug().Msg("click close sidebar button")
-			if err = locSide.Click(); err == nil {
-				closed.Store(true)
-			}
-		}
-	}()
-
-	go func() {
-		h.log.Debug().Msg("wait for closed sidebar button")
-		locSide := h.page.Locator("button#sidebar-toggle-button")
-		if err = locSide.WaitFor(); err == nil {
-			closed.Store(true)
-		}
-	}()
-
-	timeout := time.After(10 * time.Second)
-loop:
-	for {
-		select {
-		case <-timeout:
-			return fmt.Errorf("wait for close sidebar button timeout")
-		default:
-			time.Sleep(100 * time.Millisecond)
-			if closed.Load() {
-				if err != nil {
-					return err
-				}
-				break loop
-			}
-		}
-	}
-
-	h.log.Debug().Msg("wait for create chat button")
-	locCreate := h.page.Locator("button#new-chat-button")
-	if err = locCreate.WaitFor(); err != nil {
-		h.log.Error().Err(err).Msg("wait for create chat button error")
-		return err
-	}
-	h.log.Debug().Msg("click create chat button")
-	if err = locCreate.Click(); err != nil {
-		h.log.Error().Err(err).Msg("click create chat button error")
-		return err
-	}
-
 	h.log.Debug().Msg("wait for chat main")
 	h.locChat = h.page.Locator("div#chat-message-input")
 	if err = h.locChat.WaitFor(); err != nil {

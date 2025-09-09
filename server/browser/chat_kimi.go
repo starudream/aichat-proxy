@@ -1,10 +1,7 @@
 package browser
 
 import (
-	"fmt"
 	"strings"
-	"sync/atomic"
-	"time"
 
 	"github.com/playwright-community/playwright-go"
 
@@ -40,56 +37,6 @@ func (h *chatKimiHandler) Setup(options HandleChatOptions) {
 }
 
 func (h *chatKimiHandler) Input(prompt string) (err error) {
-	opened := atomic.Bool{}
-
-	go func() {
-		h.log.Debug().Msg("wait for open sidebar button")
-		locSide := h.page.Locator("div.layout-header div.expand-btn")
-		if err = locSide.WaitFor(); err == nil {
-			h.log.Debug().Msg("click open sidebar button")
-			if err = locSide.Click(); err == nil {
-				opened.Store(true)
-			}
-		}
-	}()
-
-	go func() {
-		h.log.Debug().Msg("wait for opened sidebar button")
-		locSide := h.page.Locator("div.sidebar-header div.expand-btn")
-		if err = locSide.WaitFor(); err == nil {
-			opened.Store(true)
-		}
-	}()
-
-	timeout := time.After(10 * time.Second)
-loop:
-	for {
-		select {
-		case <-timeout:
-			return fmt.Errorf("wait for open sidebar button timeout")
-		default:
-			time.Sleep(100 * time.Millisecond)
-			if opened.Load() {
-				if err != nil {
-					return err
-				}
-				break loop
-			}
-		}
-	}
-
-	h.log.Debug().Msg("wait for new chat button")
-	locNew := h.page.Locator("a.new-chat-btn")
-	if err = locNew.WaitFor(); err != nil {
-		logger.Error().Err(err).Msg("wait for new chat button error")
-		return err
-	}
-	h.log.Debug().Msg("click new chat button")
-	if err = locNew.Click(); err != nil {
-		logger.Error().Err(err).Msg("click new chat button error")
-		return err
-	}
-
 	h.log.Debug().Msg("wait for chat main")
 	h.locChat = h.page.Locator("div.chat-editor")
 	if err = h.locChat.WaitFor(); err != nil {
@@ -131,19 +78,23 @@ func (h *chatKimiHandler) Send() error {
 }
 
 type kimiEvent struct {
-	Event string `json:"event"`
-	Text  string `json:"text,omitempty"`
-	View  string `json:"view,omitempty"`
-
-	Error struct {
-		ErrorType string `json:"error_type,omitempty"`
-		Message   string `json:"message,omitempty"`
-		Detail    string `json:"detail,omitempty"`
-	} `json:"error,omitempty"`
+	Op string `json:"op"`
+	// block.think.content or block.text.content
+	Mask        string `json:"mask"`
+	EventOffset int    `json:"eventOffset"`
+	Block       struct {
+		Id    string `json:"id"`
+		Think struct {
+			Content string `json:"content"`
+		} `json:"think,omitempty"`
+		Text struct {
+			Content string `json:"content"`
+		} `json:"text,omitempty"`
+	} `json:"block"`
 }
 
 func (h *chatKimiHandler) Unmarshal(s string) *ChatMessage {
-	s = strings.TrimSpace(strings.TrimPrefix(s, "data:"))
+	s = strings.TrimSpace(s)
 	if s == "" {
 		return nil
 	}
@@ -151,13 +102,11 @@ func (h *chatKimiHandler) Unmarshal(s string) *ChatMessage {
 	if err != nil {
 		return nil
 	}
-	switch event.Event {
-	case "k1":
-		return &ChatMessage{ReasoningContent: event.Text}
-	case "cmpl":
-		return &ChatMessage{Content: event.Text}
-	case "error":
-		return &ChatMessage{Content: event.Error.Message}
+	switch event.Mask {
+	case "block.think.content":
+		return &ChatMessage{ReasoningContent: event.Block.Think.Content}
+	case "block.text.content":
+		return &ChatMessage{Content: event.Block.Text.Content}
 	}
 	return nil
 }

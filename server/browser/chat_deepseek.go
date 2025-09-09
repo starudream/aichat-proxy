@@ -1,10 +1,8 @@
 package browser
 
 import (
-	"fmt"
 	"strings"
 	"sync/atomic"
-	"time"
 
 	"github.com/playwright-community/playwright-go"
 
@@ -40,56 +38,6 @@ func (h *chatDeepseekHandler) Setup(options HandleChatOptions) {
 }
 
 func (h *chatDeepseekHandler) Input(prompt string) (err error) {
-	closed := atomic.Bool{}
-
-	go func() {
-		h.log.Debug().Msg("wait for close sidebar button")
-		locSide := h.page.Locator(`div.ds-icon-button:has(rect[id^="折叠边栏"])`)
-		if err = locSide.WaitFor(); err == nil {
-			h.log.Debug().Msg("click close sidebar button")
-			if err = locSide.Click(); err == nil {
-				closed.Store(true)
-			}
-		}
-	}()
-
-	go func() {
-		h.log.Debug().Msg("wait for closed sidebar button")
-		locSide := h.page.Locator(`div.ds-icon-button:has(rect[id^="打开边栏"])`)
-		if err = locSide.WaitFor(); err == nil {
-			closed.Store(true)
-		}
-	}()
-
-	timeout := time.After(10 * time.Second)
-loop:
-	for {
-		select {
-		case <-timeout:
-			return fmt.Errorf("wait for close sidebar button timeout")
-		default:
-			time.Sleep(100 * time.Millisecond)
-			if closed.Load() {
-				if err != nil {
-					return err
-				}
-				break loop
-			}
-		}
-	}
-
-	h.log.Debug().Msg("wait for new chat button")
-	locNew := h.page.Locator(`div.ds-icon-button:has(rect[id^="新建会话"])`)
-	if err = locNew.WaitFor(); err != nil {
-		logger.Error().Err(err).Msg("wait for new chat button error")
-		return err
-	}
-	h.log.Debug().Msg("click new chat button")
-	if err = locNew.Click(); err != nil {
-		logger.Error().Err(err).Msg("click new chat button error")
-		return err
-	}
-
 	h.log.Debug().Msg("wait for chat textarea")
 	locText := h.page.Locator("textarea#chat-input")
 	if err = locText.WaitFor(); err != nil {
@@ -124,16 +72,17 @@ func (h *chatDeepseekHandler) Send() error {
 }
 
 type deepseekEvent struct {
-	V string `json:"v"`
-	// response/thinking_content or response/content
+	V any    `json:"v"`
 	P string `json:"p,omitempty"`
 	O string `json:"o,omitempty"`
 }
 
-// {"v": "嗯", "p": "response/thinking_content"}
-// {"v": "……", "o": "APPEND"}
-// {"v": 8, "p": "response/thinking_elapsed_secs", "o": "SET"}
-// {"v": "你好", "p": "response/content", "o": "APPEND"}
+type deepseekV struct {
+	Id int `json:"id,omitempty"`
+	// THINK or RESPONSE
+	Type    string `json:"type,omitempty"`
+	Content string `json:"content,omitempty"`
+}
 
 func (h *chatDeepseekHandler) Unmarshal(s string) *ChatMessage {
 	s = strings.TrimSpace(strings.TrimPrefix(s, "data:"))
@@ -144,21 +93,30 @@ func (h *chatDeepseekHandler) Unmarshal(s string) *ChatMessage {
 	if err != nil {
 		return nil
 	}
-	if event.V == "" {
-		return nil
+	content := ""
+	switch x := event.V.(type) {
+	case string:
+		content = x
+	case []any:
+		v, e := json.UnmarshalTo[[]*deepseekV](json.MustMarshal(x))
+		if e != nil || len(v) == 0 {
+			return nil
+		}
+		switch v[0].Type {
+		case "THINK":
+			h.reasoning.Store(true)
+		case "RESPONSE":
+			h.reasoning.Store(false)
+		default:
+			return nil
+		}
+		content = v[0].Content
 	}
-	switch event.P {
-	case "":
-		// pass
-	case "response/thinking_content":
-		h.reasoning.Store(true)
-	case "response/content":
-		h.reasoning.Store(false)
-	default:
+	if content == "" {
 		return nil
 	}
 	if h.reasoning.Load() {
-		return &ChatMessage{ReasoningContent: event.V}
+		return &ChatMessage{ReasoningContent: content}
 	}
-	return &ChatMessage{Content: event.V}
+	return &ChatMessage{Content: content}
 }

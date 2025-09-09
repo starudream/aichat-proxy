@@ -18,6 +18,8 @@ type chatZhiPuHandler struct {
 
 	log  logger.ZLogger
 	page playwright.Page
+
+	blocks []string
 }
 
 func (h *chatZhiPuHandler) Name() string {
@@ -132,8 +134,17 @@ func (h *chatZhiPuHandler) Unmarshal(s string) *ChatMessage {
 		return nil
 	}
 	content := event.Data.DeltaContent
+	if content != "" {
+		h.blocks = append(h.blocks, content)
+	} else if event.Data.EditContent != "" {
+		t := strings.Join(h.blocks[len(h.blocks)-3:], "")
+		i := strings.LastIndex(event.Data.EditContent, t)
+		if i >= 0 {
+			content = event.Data.EditContent[i+len(t):]
+		}
+	}
 	if content == "" {
-		content = event.Data.EditContent
+		return nil
 	}
 	switch event.Data.Phase {
 	case "thinking":

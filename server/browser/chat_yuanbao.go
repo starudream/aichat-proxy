@@ -37,18 +37,6 @@ func (h *chatYuanbaoHandler) Setup(options HandleChatOptions) {
 }
 
 func (h *chatYuanbaoHandler) Input(prompt string) (err error) {
-	h.log.Debug().Msg("wait for new chat button")
-	locNew := h.page.Locator("span.icon-yb-ic_newchat_20")
-	if err = locNew.WaitFor(); err != nil {
-		h.log.Error().Err(err).Msg("wait for new chat button error")
-		return err
-	}
-	h.log.Debug().Msg("click new chat button")
-	if err = locNew.Click(); err != nil {
-		h.log.Error().Err(err).Msg("click new chat button error")
-		return err
-	}
-
 	h.log.Debug().Msg("wait for chat main")
 	h.locChat = h.page.Locator("div.yb-input-box-textarea")
 	if err = h.locChat.WaitFor(); err != nil {

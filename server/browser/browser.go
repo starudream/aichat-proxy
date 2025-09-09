@@ -100,10 +100,10 @@ func (s *Browser) openPage(url string) (page playwright.Page, err error) {
 
 	pages := s.bc.Pages()
 	for i := range pages {
-		if strings.HasPrefix(pages[i].URL(), url) {
+		if pages[i].URL() == url {
 			return pages[i], nil
 		}
-		if pages[i].URL() == "about:blank" {
+		if strings.HasPrefix(pages[i].URL(), url) || pages[i].URL() == "about:blank" {
 			page = pages[i]
 			break
 		}
