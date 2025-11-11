@@ -35,18 +35,6 @@ func (h *chatGoogleHandler) Setup(options HandleChatOptions) {
 }
 
 func (h *chatGoogleHandler) Input(prompt string) (err error) {
-	h.log.Debug().Msg("wait for new chat link")
-	locNew := h.page.GetByRole("link", playwright.PageGetByRoleOptions{Name: "Chat"})
-	if err = locNew.WaitFor(); err != nil {
-		h.log.Error().Err(err).Msg("wait for new chat link error")
-		return err
-	}
-	h.log.Debug().Msg("click new chat link")
-	if err = locNew.Click(); err != nil {
-		h.log.Error().Err(err).Msg("click new chat link error")
-		return err
-	}
-
 	h.log.Debug().Msg("wait for chat main")
 	h.locChat = h.page.Locator("ms-prompt-input-wrapper")
 	if err = h.locChat.WaitFor(); err != nil {
