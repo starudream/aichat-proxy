@@ -48,14 +48,14 @@ func (h *chatGoogleHandler) Input(prompt string) (err error) {
 	}
 
 	h.log.Debug().Msg("wait for chat main")
-	h.locChat = h.page.Locator("ms-prompt-input-wrapper")
+	h.locChat = h.page.Locator("ms-prompt-box")
 	if err = h.locChat.WaitFor(); err != nil {
 		h.log.Error().Err(err).Msg("wait for chat main error")
 		return err
 	}
 
 	h.log.Debug().Msg("wait for chat textarea")
-	locText := h.locChat.Locator("ms-autosize-textarea textarea")
+	locText := h.locChat.Locator("textarea")
 	if err = locText.WaitFor(); err != nil {
 		h.log.Error().Err(err).Msg("wait for chat textarea error")
 		return err
