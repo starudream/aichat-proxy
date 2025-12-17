@@ -2,7 +2,6 @@ package browser
 
 import (
 	"strings"
-	"sync/atomic"
 
 	"github.com/playwright-community/playwright-go"
 
@@ -21,10 +20,6 @@ type chatDoubaoHandler struct {
 	page playwright.Page
 
 	locChat playwright.Locator
-
-	lastType  atomic.Int64
-	newline   atomic.Bool
-	reasoning atomic.Bool
 }
 
 func (h *chatDoubaoHandler) Name() string {
@@ -88,95 +83,20 @@ type doubaoEvent struct {
 	EventData string `json:"event_data"`
 }
 
-// 正文
-// {
-//  "message": {
-//    "content_type": 2001,
-//    "content": "{\"text\":\"Hello\"}",
-//    "id": ""
-//  }
-// }
-// 建议
-// {
-//  "message": {
-//    "content_type": 2002,
-//    "content": "{\"suggest\":\"Can you tell me some interesting facts?\",\"suggestions\":[\"Can you tell me some interesting facts?\"]}",
-//    "id": ""
-//  }
-// }
-// 联网搜索
-// {
-//  "message": {
-//    "content_type": 2003,
-//    "content": "{\"type\":1,\"text\":\"正在搜索\"}",
-//    "id": ""
-//  }
-// }
-// 深度思考开始
-// {
-//  "message": {
-//    "content_type": 10040,
-//    "content": "{\"finish_title\":\"深度思考中\"}",
-//    "id": ""
-//  }
-// }
-// 深度思考内容
-// {
-//  "message": {
-//    "content_type": 10000,
-//    "content": "{\"text\":\"用户说\\\"hello\"}",
-//    "id": "",
-//    "pid": ""
-//  }
-// }
-// 深度思考结束
-// {
-//  "message": {
-//    "content_type": 10040,
-//    "content": "{\"finish_title\":\"已完成思考\"}",
-//    "reset": true,
-//    "id": "",
-//    "is_finish": true
-//  }
-// }
-// 正文内容
-// {
-//  "message": {
-//    "content_type": 10000,
-//    "content": "{\"text\":\"Hello! 很高兴能和\"}",
-//    "id": ""
-//  }
-// }
-// 正文结束
-// {
-//  "message": {
-//    "content_type": 10000,
-//    "content": "{}",
-//    "id": ""
-//  },
-//  "is_finish": true
-// }
-
 type doubaoEventData struct {
-	Message struct {
-		Id string `json:"id"`
-		//  2001 正文
-		//  2002 建议
-		//  2003 搜索提示
-		// 10000 正文
-		// 10025 参考资料
-		// 10040 深度思考开始/结束
-		ContentType int    `json:"content_type"`
-		Content     string `json:"content"`
-		// 思考结束
-		IsFinish bool `json:"is_finish"`
-	} `json:"message"`
+	Blocks []doubaoBlock `json:"blocks"`
 }
 
-type doubaoEventContent struct {
-	Type  int    `json:"type,omitempty"`
-	Text  string `json:"text,omitempty"`
-	Think string `json:"think,omitempty"`
+type doubaoBlock struct {
+	Id          string `json:"id"`
+	Pid         string `json:"pid"`
+	ContentType int    `json:"content_type"`
+	Content     string `json:"content"`
+	Reset       bool   `json:"reset"`
+}
+
+type doubaoContent struct {
+	Text string `json:"text"`
 }
 
 func (h *chatDoubaoHandler) Unmarshal(s string) *ChatMessage {
@@ -189,48 +109,28 @@ func (h *chatDoubaoHandler) Unmarshal(s string) *ChatMessage {
 		h.log.Error().Err(err).Msg("unmarshal doubao event error")
 		return nil
 	}
+	if event.EventType != 2022 {
+		return nil
+	}
 	data, err := json.UnmarshalTo[*doubaoEventData](event.EventData)
 	if err != nil {
 		h.log.Error().Err(err).Msg("unmarshal doubao event data error")
 		return nil
 	}
-	if data.Message.Content == "" {
+	if len(data.Blocks) == 0 {
 		return nil
 	}
-	content, err := json.UnmarshalTo[*doubaoEventContent](data.Message.Content)
+	block := data.Blocks[0]
+	if block.ContentType != 10000 {
+		return nil
+	}
+	content, err := json.UnmarshalTo[*doubaoContent](block.Content)
 	if err != nil {
 		h.log.Error().Err(err).Msg("unmarshal doubao event content error")
 		return nil
 	}
-	if t := int64(data.Message.ContentType); h.lastType.Load() != t {
-		h.lastType.Store(t)
-		h.newline.Store(true)
+	if block.Pid != "" {
+		return &ChatMessage{Index: event.EventId, ReasoningContent: content.Text + "\n\n"}
 	}
-	// nolint:staticcheck
-	if data.Message.ContentType == 2003 {
-		if content.Type == 5 {
-			h.reasoning.Store(true)
-		} else if content.Type == 6 {
-			h.reasoning.Store(false)
-		}
-		return nil
-	} else if data.Message.ContentType == 10040 {
-		if data.Message.IsFinish {
-			h.reasoning.Store(false)
-		} else {
-			h.reasoning.Store(true)
-		}
-		return nil
-	}
-	text := content.Text
-	if content.Think != "" {
-		text = content.Think
-	}
-	if h.newline.CompareAndSwap(true, false) {
-		text = "\n\n" + text
-	}
-	if h.reasoning.Load() {
-		return &ChatMessage{Index: event.EventId, ReasoningContent: text}
-	}
-	return &ChatMessage{Index: event.EventId, Content: text}
+	return &ChatMessage{Index: event.EventId, Content: content.Text + "\n\n"}
 }

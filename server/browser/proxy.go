@@ -75,7 +75,7 @@ var mitmHosts = map[string]*mitmModule{
 	"www.doubao.com:443": {
 		Name:         "doubao",
 		TypePrefix:   "text/event-stream",
-		PathContains: "/chat/completion",
+		PathContains: "/chat/async/stream",
 	},
 	"chat.qwen.ai:443": {
 		Name:         "qwen",

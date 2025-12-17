@@ -48,7 +48,7 @@ func (h *chatGoogleHandler) Input(prompt string) (err error) {
 	}
 
 	h.log.Debug().Msg("wait for chat main")
-	h.locChat = h.page.Locator("ms-prompt-input-wrapper")
+	h.locChat = h.page.Locator("ms-chunk-editor")
 	if err = h.locChat.WaitFor(); err != nil {
 		h.log.Error().Err(err).Msg("wait for chat main error")
 		return err
