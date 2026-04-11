@@ -38,33 +38,32 @@ func (h *chatDeepseekHandler) Setup(options HandleChatOptions) {
 }
 
 func (h *chatDeepseekHandler) Input(prompt string) (err error) {
-	h.log.Debug().Msg("wait for chat textarea")
-	locText := h.page.Locator("textarea#chat-input")
-	if err = locText.WaitFor(); err != nil {
-		logger.Error().Err(err).Msg("wait for chat textarea error")
+	h.log.Debug().Msg("click start new conversation")
+	if err = h.page.GetByText("开启新对话").Click(); err != nil {
+		h.log.Error().Err(err).Msg("click start new conversation error")
 		return err
 	}
 
-	h.log.Debug().Msg("fill prompt to chat textarea")
-	if err = locText.Fill(prompt); err != nil {
-		logger.Error().Err(err).Msg("fill prompt to chat textarea error")
+	h.log.Debug().Msg("wait for chat main")
+	locChat := h.page.GetByRole(*playwright.AriaRoleTextbox, playwright.PageGetByRoleOptions{Name: "给 DeepSeek 发送消息"})
+	if err = locChat.WaitFor(); err != nil {
+		h.log.Error().Err(err).Msg("wait for chat main error")
+		return err
+	}
+
+	h.log.Debug().Msg("wait for chat textarea")
+	if err = locChat.Fill(prompt); err != nil {
+		h.log.Error().Err(err).Msg("fill prompt error")
 		return err
 	}
 
 	return nil
 }
 
-func (h *chatDeepseekHandler) Send() error {
-	h.log.Debug().Msg("wait for chat send button")
-	locSend := h.page.Locator(`input[type="file"] + div`)
-	if err := locSend.WaitFor(); err != nil {
-		logger.Error().Err(err).Msg("wait for chat send button error")
-		return err
-	}
-
-	h.log.Debug().Msg("click chat send button")
-	if err := locSend.Click(); err != nil {
-		logger.Error().Err(err).Msg("click chat send button error")
+func (h *chatDeepseekHandler) Send() (err error) {
+	h.log.Debug().Msg("click send")
+	if err = h.page.GetByRole(*playwright.AriaRoleButton, playwright.PageGetByRoleOptions{}).Nth(4).Click(); err != nil {
+		h.log.Error().Err(err).Msg("click send error")
 		return err
 	}
 
@@ -82,6 +81,14 @@ type deepseekV struct {
 	// THINK or RESPONSE
 	Type    string `json:"type,omitempty"`
 	Content string `json:"content,omitempty"`
+
+	Response struct {
+		Fragments []struct {
+			Id      int    `json:"id"`
+			Type    string `json:"type"`
+			Content string `json:"content"`
+		} `json:"fragments"`
+	} `json:"response"`
 }
 
 func (h *chatDeepseekHandler) Unmarshal(s string) *ChatMessage {
@@ -111,6 +118,24 @@ func (h *chatDeepseekHandler) Unmarshal(s string) *ChatMessage {
 			return nil
 		}
 		content = v[0].Content
+	case map[string]any:
+		v, e := json.UnmarshalTo[*deepseekV](json.MustMarshal(x))
+		if e != nil || v == nil {
+			return nil
+		}
+		if len(v.Response.Fragments) == 0 {
+			return nil
+		}
+		fragment := v.Response.Fragments[0]
+		switch fragment.Type {
+		case "THINK":
+			h.reasoning.Store(true)
+		case "RESPONSE":
+			h.reasoning.Store(false)
+		default:
+			return nil
+		}
+		content = fragment.Content
 	}
 	if content == "" {
 		return nil
